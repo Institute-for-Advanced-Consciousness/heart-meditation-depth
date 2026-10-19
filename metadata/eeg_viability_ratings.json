@@ -1,0 +1,14 @@
+{
+  "participant_id": {
+    "Description": "Participant label of the BIDS dataset (OpenNeuro ds008836)."
+  },
+  "eeg_viability": {
+    "Description": "The experimenters' rating of the participant's EEG recordings, made from the session notes before the analysis. Used only to define the participant subsets of Supplementary Table 2.",
+    "Levels": {
+      "1": "No issues; ideal session.",
+      "2": "Permissible session(s), with notes.",
+      "3": "Potentially permissible; to be corroborated with EEG quality checks.",
+      "4": "Missing data, but usable."
+    }
+  }
+}

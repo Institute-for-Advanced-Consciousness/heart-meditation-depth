@@ -1,0 +1,14 @@
+# data and results never go into the repository
+data/
+results/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

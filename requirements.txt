@@ -1,0 +1,13 @@
+# Python 3.12. The versions below are those under which the results of the paper were
+# reproduced; later versions may give differences in the last digits.
+numpy==2.4.4
+scipy==1.17.0
+mne==1.11.0
+pandas==2.3.3
+matplotlib==3.10.8
+scikit-learn==1.8.0
+pymatreader==1.1.0
+h5py==3.15.1
+nibabel==5.4.2
+pillow==12.3.0
+neurokit2==0.2.13
