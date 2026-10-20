@@ -202,7 +202,7 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     # ── GATE 0: MIN_SESSION_MIN, on the lower-bound duration proxy ──────────
     # The same proxy and the same order as heart_depth_run._minimal_session_npz:
     # before any other gate.
-    from heart_depth_run import session_duration_lowerbound_min
+    from session_length import session_duration_lowerbound_min
     dur = session_duration_lowerbound_min(d['block_spans'], d['seg_span'], fs)
     notes['dur_min_lowerbound'] = round(float(dur), 1)
     if p.get('MIN_SESSION_MIN') and np.isfinite(dur) \
@@ -235,6 +235,10 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     if notes['n_seg_window_refused']:
         keep &= w_ok
     notes['n_seg_window_ok'] = int(keep.sum())
+    _won = str(p.get('WAVELET_ON', 'window'))
+    if _won not in ('window', 'segment'):
+        raise ValueError(f"WAVELET_ON must be 'window' or 'segment', got {_won!r}")
+    _cwt_seg = _won == 'segment'
 
     # ── GATE 1c: resolve overlaps at the ANALYSIS duration ──────────────────
     ov_key = 'overlap_resolved' in d.files
@@ -417,21 +421,13 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     notes['ibi_short_prop'] = float(ibi_short_prop(
         qa_abs_all, fs, min_ibi_ms=float(p.get('MIN_IBI_MS', 600))))
 
-    # ── GATE 4: MIN_TRIALS, per observation ──────────────────────────────────
-    n_analysed = int(clean_abs_all.size)
-    notes['n_beats_analysed'] = n_analysed
-    if int(p.get('MIN_TRIALS', 0)) and n_analysed < int(p['MIN_TRIALS']):
-        notes['skip_reason'] = (f'MIN_TRIALS: {n_analysed} analysable beat(s) '
-                                f'< {int(p["MIN_TRIALS"])}')
-        if verbose:
-            print(f'  {tag}: {notes["skip_reason"]} — session skipped')
-        return None
+    notes['n_beats_analysed'] = int(clean_abs_all.size)
 
     return dict(d=d, sid=sid, ses=ses, fs=fs, tag=tag, seg_eeg=seg_eeg,
                 seg_ecg=seg_ecg, depth=depth, cond=cond, ch_names=ch_names,
                 nC=nC, idx_keep=idx_keep, seg_peaks_abs=seg_peaks_abs,
                 seg_abs=seg_abs, w0=w0, w1=w1, n=n, lo=lo, hi=hi,
-                times=times, freqs=freqs, nT=nT)
+                times=times, freqs=freqs, nT=nT, seg_len=seg_len, cwt_seg=_cwt_seg)
 
 
 def session_measures_scalp(npz_path, p, verbose=True, notes=None):
@@ -465,6 +461,7 @@ def session_measures_scalp(npz_path, p, verbose=True, notes=None):
     seg_peaks_abs, seg_abs = ctx['seg_peaks_abs'], ctx['seg_abs']
     w0, w1, n, lo, hi = ctx['w0'], ctx['w1'], ctx['n'], ctx['lo'], ctx['hi']
     times, freqs, nT = ctx['times'], ctx['freqs'], ctx['nT']
+    seg_len, _cwt_seg = ctx['seg_len'], ctx['cwt_seg']
 
     # ── PER SEGMENT: epochable beats, then one full-channel CWT per segment ──
     nF = len(freqs)
@@ -488,8 +485,14 @@ def session_measures_scalp(npz_path, p, verbose=True, notes=None):
         # [nChan x n]: every scalp electrode's continuous trace over the window
         eeg = np.asarray(seg_eeg[k, :, w0:w1], float)
         # One morlet_cwt call on the [nChan x n] block returns every channel's
-        # transform, with no per-channel re-transform.
-        co = morlet_cwt(eeg, freqs, fs, width=p['HRSP_WAVE_WIDTH'])   # [nChan x nF x n]
+        # transform, with no per-channel re-transform. Under
+        # WAVELET_ON='segment' the whole stored segment is transformed and the
+        # window cut from it (see heart_depth_pipeline.DEFAULT_PARAMS).
+        if _cwt_seg:
+            co = morlet_cwt(np.asarray(seg_eeg[k, :, :int(seg_len[k])], float), freqs, fs,
+                            width=p['HRSP_WAVE_WIDTH'])[:, :, w0:w1]
+        else:
+            co = morlet_cwt(eeg, freqs, fs, width=p['HRSP_WAVE_WIDTH'])   # [nChan x nF x n]
         idx = np.stack([np.arange(q + lo, q + hi + 1) for q in pk])  # [nBeats x nT]
         # Vectorized per-channel map assembly: same algebra as the IC route's
         # per-segment loop, with the channel axis batched into the indexing.

@@ -89,6 +89,15 @@ CONFIG = dict(
     MIN_IBI_MS=600,
     MIN_BEATS_PER_PERIOD=50,           # minimum epochable beats per period
     DROP_EDGE_BEATS=True,
+    # What the Morlet transform runs on. 'epoch': each -300 to 700 ms epoch on its own,
+    # so at low frequencies most of the epoch is within the wavelet's reach of a
+    # zero-padded edge (3 SD: 0.6 s at 4 Hz, 1.2 s at 2 Hz). 'block': each period's
+    # continuous block, then epoched, with beats whose epoch comes within
+    # EDGE_GUARD_S of a block end dropped; in the selection, each SELECT_ON period is
+    # transformed on its own, so no transform runs across the join between two
+    # periods. Folder token '_cwtblock'.
+    WAVELET_ON='epoch',
+    EDGE_GUARD_S=2.0,
 
     # 'none' | 'glm' | 'subtract'. 'glm' is the period form of the depth analysis's baseline
     # correction (each beat's own pre-R power, BASELINE_WIN, as a regressor): per session and
@@ -113,6 +122,13 @@ def _period_signals(z, per, p):
         return None, None, 0
     ecg, _n2, _w2 = period_block(z, per, 'ecg')
     return eeg, (None if ecg is None else ecg.ravel()), n_win
+
+
+def _wavelet_on(p):
+    w = str(p.get('WAVELET_ON', 'epoch'))
+    if w not in ('epoch', 'block'):
+        raise ValueError("WAVELET_ON must be 'epoch' or 'block', got %r" % w)
+    return w
 
 
 def period_measures(eeg_ic, ecg, fs, p, pol=1, notes=None):
@@ -144,7 +160,14 @@ def period_measures(eeg_ic, ecg, fs, p, pol=1, notes=None):
     lo_ms, hi_ms = p['EPOCH_MS']
     lo_s = int(round(lo_ms * fs / 1000.0))
     hi_s = int(round(hi_ms * fs / 1000.0))
-    if p['DROP_EDGE_BEATS']:
+    cwt_block = _wavelet_on(p) == 'block'
+    if cwt_block:
+        # Real data on both sides of every epoch, beyond the wavelet's reach.
+        g = int(round(float(p['EDGE_GUARD_S']) * fs))
+        ok = (pk + lo_s - g >= 0) & (pk + hi_s + g < n)
+        notes['n_edge_dropped'] = int((~ok).sum())
+        pk = pk[ok]
+    elif p['DROP_EDGE_BEATS']:
         ok = (pk + lo_s >= 0) & (pk + hi_s < n)
         notes['n_edge_dropped'] = int((~ok).sum())
         pk = pk[ok]
@@ -172,7 +195,17 @@ def period_measures(eeg_ic, ecg, fs, p, pol=1, notes=None):
 
     if 'hrsp' in p['MEASURES'] or 'hepc' in p['MEASURES']:
         freqs = np.asarray(p['HRSP_FREQS'], float)
-        W = morlet_cwt(ep, freqs, fs, width=float(p['HRSP_WAVE_WIDTH']))
+        if cwt_block:
+            # The block's transform indexed at the epochs, with the sample convention of
+            # `epoch_beats` (i0..i1 inclusive); every beat here fits, after the guard.
+            Wc = morlet_cwt(np.asarray(eeg_ic, float), freqs, fs,
+                            width=float(p['HRSP_WAVE_WIDTH']))          # [nF x n]
+            i0 = int(round(lo_ms * fs / 1000.0))
+            i1 = int(round(hi_ms * fs / 1000.0))
+            idx = np.stack([np.arange(q + i0, q + i1 + 1) for q in pk])
+            W = Wc[:, idx].transpose(1, 0, 2)                           # [nBeat x nF x nT]
+        else:
+            W = morlet_cwt(ep, freqs, fs, width=float(p['HRSP_WAVE_WIDTH']))
         if 'hrsp' in p['MEASURES']:
             pw = np.abs(W) ** 2
             if str(p.get('BASELINE_METHOD', 'none')).lower() == 'subtract':
@@ -284,6 +317,18 @@ def lee_select_for_session(z, p, fs, pol, verbose=False):
     hi_s = int(round(hi_ms * fs / 1000.0))
     n = comp.shape[1]
     pk = pk[(pk + lo_s >= 0) & (pk + hi_s < n)]
+    cwt_block = _wavelet_on(p) == 'block'
+    if cwt_block:
+        # Drop beats whose epoch comes within EDGE_GUARD_S of either end of any of the
+        # concatenated periods: each period is transformed on its own below.
+        g = int(round(float(p['EDGE_GUARD_S']) * fs))
+        ends = np.cumsum([s.shape[1] for s in sigs])
+        starts = np.concatenate([[0], ends[:-1]])
+        ok = np.zeros(pk.size, bool)
+        for s0, s1 in zip(starts, ends):
+            ok |= (pk + lo_s - g >= s0) & (pk + hi_s + g < s1)
+        notes['n_edge_dropped_selection'] = int((~ok).sum())
+        pk = pk[ok]
     if pk.size < int(p['MIN_BEATS_PER_PERIOD']):
         notes['skip_reason'] = ('%d epochable beat(s) in the selection block < '
                                 'MIN_BEATS_PER_PERIOD %d'
@@ -303,7 +348,11 @@ def lee_select_for_session(z, p, fs, pol, verbose=False):
     bl0, bl1 = p['BASELINE_WIN']
     t_bl = (t_axis >= bl0) & (t_axis <= bl1)
 
-    ic_cwt = morlet_cwt(comp, sel_freqs, fs, width=float(p['HRSP_WAVE_WIDTH']))
+    if cwt_block:
+        ic_cwt = np.concatenate([morlet_cwt(s, sel_freqs, fs, width=float(p['HRSP_WAVE_WIDTH']))
+                                 for s in sigs], axis=-1)
+    else:
+        ic_cwt = morlet_cwt(comp, sel_freqs, fs, width=float(p['HRSP_WAVE_WIDTH']))
     sel, _w, _pool = select_ics_lee(
         ic_cwt, ei, t_bl, t_sel,
         criterion=p['HRSP_SEL_CRITERION'], norm_mode=p['IC_SEL_NORM'],
@@ -580,6 +629,8 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
         tag += '_blsub'
     elif str(p.get('BASELINE_METHOD', 'none')).lower() != 'none':
         raise ValueError('unknown BASELINE_METHOD %r' % p['BASELINE_METHOD'])
+    if _wavelet_on(p) == 'block':
+        tag += '_cwtblock'
     out_dir = os.path.join(results_root, 'HEART_PERIOD', tag)
     all_rows = []
     times = None

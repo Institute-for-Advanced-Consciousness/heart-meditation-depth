@@ -107,6 +107,14 @@ DEFAULT_PARAMS = dict(
     PRE_END=3,                     # s before the report
     EXTRACT_EPOCH_DUR=90,          # what the .npz on disk actually holds
     EXTRACT_PRE_END=2,             # as written by extract_npz.py
+    # What the Morlet transform runs on, selection and measures alike.
+    # 'window': the analysis window only, so the beats nearest its two ends sit
+    # within the wavelet's reach of a zero-padded edge (3 SD, 0.6 s at 4 Hz).
+    # 'segment': the whole stored segment, then the window is cut from the
+    # transform, so every beat in the window sees real data on both sides
+    # (at PRE_END=10, 22 s before the window and 8 s after it). Folder token
+    # 'cwtseg'.
+    WAVELET_ON='window',
 
     # --- The statistical window (trim) ---
     # The measures are computed over HEP_WIN and the model is fit over TLIMS:
@@ -127,10 +135,6 @@ DEFAULT_PARAMS = dict(
     # --- cohort gates (kept in step with the FMT arm by hand) ---
     MIN_SESSION_MIN=45,
     MIN_DEPTHS=2,
-    # Per observation (subject x session), on the beats that survive clean_rr
-    # and MIN_IBI_MS and fall inside an analysed segment: with fewer, the
-    # session is skipped.
-    MIN_TRIALS=50,
     # A beat-level gate: a beat whose preceding inter-beat interval is shorter
     # than this is dropped. The first beat of the train has a NaN interval and
     # is kept.
@@ -671,6 +675,10 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                   f'{float(p["PRE_END"]):g} s before the report')
     keep &= w_ok
     notes['n_seg_window_ok'] = int(keep.sum())
+    _won = str(p.get('WAVELET_ON', 'window'))
+    if _won not in ('window', 'segment'):
+        raise ValueError(f"WAVELET_ON must be 'window' or 'segment', got {_won!r}")
+    _cwt_seg = _won == 'segment'
 
     # ── GATE 1c: resolve overlaps at the analysis duration ──────────────────
     # The .npz may hold overlapping segments: extract_npz writes
@@ -887,8 +895,8 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             # re-establishes the convention itself.
             # A bad window must not kill the session. get_rr raises on a flat
             # line or when no QRS candidate is above threshold; an empty train
-            # here flows into the MIN_BEATS_UNIT / MIN_TRIALS gates, which drop
-            # the segment (or the session) with a named reason, and the failure
+            # here flows into the MIN_BEATS_UNIT gate, which drops
+            # the segment with a named reason, and the failure
             # is recorded.
             try:
                 pk, _ = get_rr(_win, fs, polarity=1, drop_first=False)
@@ -1072,19 +1080,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     notes['ibi_short_prop'] = float(ibi_short_prop(
         qa_abs_all, fs, min_ibi_ms=float(p.get('MIN_IBI_MS', 600))))
 
-    # ── GATE 4: MIN_TRIALS, per observation ────────────────────────────────
-    # Too few clean, IBI-filtered beats inside the analysed depth segments
-    # (clean_abs_all) skips the whole observation.
-    n_analysed = int(clean_abs_all.size)
-    notes['n_beats_analysed'] = n_analysed
-    if int(p.get('MIN_TRIALS', 0)) and n_analysed < int(p['MIN_TRIALS']):
-        notes['skip_reason'] = (
-            f'MIN_TRIALS: {n_analysed} analysable beat(s) < '
-            f'{int(p["MIN_TRIALS"])} in this session')
-        if verbose:
-            print(f'  {tag}: {n_analysed} beats < MIN_TRIALS '
-                  f'{int(p["MIN_TRIALS"])} — session skipped')
-        return None
+    notes['n_beats_analysed'] = int(clean_abs_all.size)
 
     # ── STAGE C: epochable beats, ECG-quality gate, CWT, selection ──────────
     seg_peaks, seg_ok, seg_nbeat = [], [], []
@@ -1154,13 +1150,17 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         # component at every selection frequency, for every segment), so it is
         # not built when the selection is pinned.
         if not _pinned:
-            eeg = np.asarray(seg_eeg[k, :, w0:w1], float)
+            if _cwt_seg:
+                eeg = np.asarray(seg_eeg[k, :, :int(seg_len[k])], float)
+            else:
+                eeg = np.asarray(seg_eeg[k, :, w0:w1], float)
             # icawinv carries the component SIGN CONVENTION (reconstruct_ics).
             cand = reconstruct_ics(eeg, icaw, icas, icach,
                                    icawinv=icawinv)           # [nIC x n]
-            co = morlet_cwt(cand, freqs[f_sel], fs,
-                            width=p['HRSP_WAVE_WIDTH']).astype(np.complex64)
-            sel_chunks.append(co)
+            co = morlet_cwt(cand, freqs[f_sel], fs, width=p['HRSP_WAVE_WIDTH'])
+            if _cwt_seg:
+                co = co[..., w0:w1]
+            sel_chunks.append(co.astype(np.complex64))
         # ei_rows / offset are built regardless. Only the Lee scorer reads them,
         # but `offset` is the running concatenation position, and skipping it
         # would break anything else that reads it.
@@ -1252,7 +1252,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     # cancels the HEP toward zero. `s` is the sign of the dot product with the
     # top IC's map, which is why the order of sel_ics matters.
     sign_ref = topos[:, ic_sel]
-    _xs, per_ic = {}, []
+    _xs, _xsf, per_ic = {}, {}, []
     for rank, ic_k in enumerate(int(v) for v in sel_ics):
         # The sign convention must be applied here too. This pass builds each
         # IC straight from the unmixing row and never calls `reconstruct_ics`,
@@ -1265,13 +1265,19 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         flipped = bool(icawinv[pk_ch, ic_k] < 0)
         if flipped:
             w_k = -w_k
-        xs_k = {}
+        xs_k, xsf_k = {}, {}
         for j, k in enumerate(idx_keep):
             if not seg_ok[j]:
                 continue
-            eeg = np.asarray(seg_eeg[k, :, w0:w1], float)
-            xs_k[j] = w_k @ (eeg if icach is None or icach.size == 0
-                             else eeg[icach])
+            if _cwt_seg:
+                eeg = np.asarray(seg_eeg[k, :, :int(seg_len[k])], float)
+                xsf_k[j] = w_k @ (eeg if icach is None or icach.size == 0
+                                  else eeg[icach])
+                xs_k[j] = xsf_k[j][w0:w1]
+            else:
+                eeg = np.asarray(seg_eeg[k, :, w0:w1], float)
+                xs_k[j] = w_k @ (eeg if icach is None or icach.size == 0
+                                 else eeg[icach])
 
         # ── IC_UNIT_VAR_NORM, per IC ────────────────────────────────────────
         # Each selected IC is divided by its SD over the analysed segments,
@@ -1311,11 +1317,17 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                            winv_flipped=flipped))
         for j, v in xs_k.items():
             _xs[j] = _xs.get(j, 0.0) + s_k * nf_k * v
+        # The whole segment, combined the same way (same SD, taken over the
+        # windows), for the transform under WAVELET_ON='segment'.
+        for j, v in xsf_k.items():
+            _xsf[j] = _xsf.get(j, 0.0) + s_k * nf_k * v
 
     # The average, after the per-IC normalisation.
     n_sel = int(sel_ics.size)
     for j in _xs:
         _xs[j] = _xs[j] / n_sel
+    for j in _xsf:
+        _xsf[j] = _xsf[j] / n_sel
 
     notes['ic_combine'] = per_ic
     notes['ic_sign_flipped'] = bool(per_ic[0]['winv_flipped'])
@@ -1408,7 +1420,10 @@ def session_measures(npz_path, p, verbose=True, notes=None):
 
     for j in sorted(_xs):
         x = _xs[j]
-        co = morlet_cwt(x, freqs, fs, width=p['HRSP_WAVE_WIDTH'])
+        if _cwt_seg:
+            co = morlet_cwt(_xsf[j], freqs, fs, width=p['HRSP_WAVE_WIDTH'])[:, w0:w1]
+        else:
+            co = morlet_cwt(x, freqs, fs, width=p['HRSP_WAVE_WIDTH'])
         pk = seg_peaks[j]
         idx = np.stack([np.arange(q + lo, q + hi + 1) for q in pk])   # [nBeats x nT]
         ep = x[idx]                                                   # [nBeats x nT]

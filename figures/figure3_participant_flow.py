@@ -105,7 +105,9 @@ def main():
 
     rows = flow_table()
     kept = [r for r in rows if r['run_status'] == 'kept']
-    short = [r for r in rows if r['run_status'] == 'not in run']
+    # under 45 min: absent from the run (never preprocessed), or dropped by its MIN_SESSION_MIN gate
+    short = [r for r in rows if r['run_status'] == 'not in run'
+             or 'MIN_SESSION_MIN' in r['run_reason']]
     depths = [r for r in rows if 'MIN_DEPTHS' in r['run_reason']]
 
     n_preproc = N_SCREENED - N_PILOT

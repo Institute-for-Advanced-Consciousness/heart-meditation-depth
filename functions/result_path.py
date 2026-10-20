@@ -210,6 +210,8 @@ def heart_depth_tag(p):
              f"{p.get('BASELINE_METHOD', 'glm')}" if p.get('DO_BASELINE_CORRECT')
              else 'nobl')
     t.append(f"w{p['HRSP_WAVE_WIDTH']:g}")
+    if p.get('WAVELET_ON', 'window') != 'window':
+        t.append('cwtseg')
     t.append(f"f{p['HRSP_FREQS'][0]:g}to{p['HRSP_FREQS'][-1]:g}")
     if p.get('PRIMARY_MODEL', 'session') != 'unadj':
         t.append(f"prim-{p.get('PRIMARY_MODEL', 'session')}")
@@ -294,6 +296,12 @@ def heart_run_tag(p):
          f"dur{p.get('EPOCH_DUR', 60):g}",
          'bl' if p.get('DO_BASELINE_CORRECT') else 'nobl',
          'nosapo+sapo' if p.get('INCLUDE_SAPO', True) else 'nosapo']
+    # Window position and what the wavelet runs on, only when they differ from the
+    # paper's first submission, so its folders keep their names.
+    if p.get('PRE_END', TAG_DEFAULTS['PRE_END']) != TAG_DEFAULTS['PRE_END']:
+        t.append(f"pre{p['PRE_END']:g}")
+    if p.get('WAVELET_ON', 'window') != 'window':
+        t.append('cwtseg')
     lbl = run_label_token(p)
     if lbl:
         t.append(lbl)

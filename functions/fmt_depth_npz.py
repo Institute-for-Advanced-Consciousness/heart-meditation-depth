@@ -77,6 +77,7 @@ from fmt_depth_pipeline import (zscore_omitnan, fit_glm_wls, signflip_ttest, shr
 
 import os
 from result_path import fmt_depth_tag, result_dir, write_readme
+from session_length import session_duration_lowerbound_min
 print(f'Data: {DATA_DIR}')
 print(f'Results root: {RESULTS_ROOT}  (the run folder is named from PARAMS in Section 3)')
 
@@ -234,6 +235,9 @@ def load_npz_session(npz_path):
         # together than EPOCH_DUR + PRE_END give analysis windows that share samples,
         # and without the absolute bounds there is no way to see it.
         'seg_span': d['seg_span'],    # [nSeg x 2] absolute [start, end] samples
+        # the meditation-block spans, for the recording-length lower bound
+        'block_spans': (d['block_spans'] if 'block_spans' in d.files
+                        else np.empty((0, 2))),
         # Extraction geometry written by the extractor, so a consumer never has to
         # assume it. `None` marks a file without the keys; the caller announces the
         # fallback rather than guessing.
@@ -535,18 +539,12 @@ for subj_id, session_paths in all_sessions.items():
                     continue
 
         # -- GATE: MIN_SESSION_MIN ---------------------------------------
-        # extract_npz.py contains no duration gate and the .npz carries no duration
-        # key, so the gate is applied here. What is measured is a lower bound, and it is
-        # labelled as one: the last segment's end is the latest sample this file can
-        # prove the recording reached, so a session is dropped only when even that lower
-        # bound is under the threshold (the run prints each such session). The same kind
-        # of bound as heart_depth_run.session_duration_lowerbound_min, which also takes
-        # the block spans into account and is not imported here on purpose: importing the
-        # heartbeat runner would bring the whole ECG stack into an analysis that never
-        # touches the ECG. If one of the two changes, change both.
+        # The segment files carry no recording duration, so the gate is applied to a lower
+        # bound, computed exactly as in the heartbeat analyses (session_length.py): a
+        # session is dropped only when even that lower bound is under the threshold.
         if P.get('MIN_SESSION_MIN'):
-            _span = np.asarray(sess['seg_span'])
-            _dur_lb_min = float(np.max(_span[:, 1])) / float(fs) / 60.0
+            _dur_lb_min = session_duration_lowerbound_min(sess['block_spans'],
+                                                          sess['seg_span'], fs)
             if _dur_lb_min < float(P['MIN_SESSION_MIN']):
                 print(f'    {subj_id} ses{i_ses}: session duration lower bound '
                       f'{_dur_lb_min:.2f} min < MIN_SESSION_MIN='

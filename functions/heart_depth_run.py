@@ -222,6 +222,7 @@ from l2_heart import run_l2_heart, WEIGHT_SCHEMES, MIN_SUB_L2
 # silently shadow it, so this is an import even though the name is private to
 # l2_heart.
 from l2_heart import _emit
+from session_length import session_duration_lowerbound_min  # noqa: E402,F401  (re-export)
 from result_path import (result_dir, write_readme, heart_depth_tag, heart_method_tag,
                          heart_run_tag, assert_no_param_collision)
 
@@ -682,23 +683,6 @@ def run_paths(results_root, p, create=True, grain=None):
 from heart_depth_pipeline import window_indices  # noqa: E402  (re-export)
 
 
-def session_duration_lowerbound_min(block_spans, seg_span, fs):
-    """Lower bound on the recording length, in minutes. See the module docstring.
-
-    It is the last sample the extractor referred to, so the real recording is
-    at least this long and usually longer (post-meditation, cool-down and
-    trailing rest come after it).
-    """
-    ends = []
-    bs = np.atleast_2d(np.asarray(block_spans))
-    if bs.size:
-        ends.append(float(bs[:, 1].max()))
-    ss = np.atleast_2d(np.asarray(seg_span))
-    if ss.size:
-        ends.append(float(ss[:, 1].max()))
-    if not ends:
-        return np.nan
-    return max(ends) / float(fs) / 60.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════

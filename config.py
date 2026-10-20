@@ -36,6 +36,7 @@ FIGURES_DIR = os.path.join(RESULTS_DIR, 'figures')
 SCALP = dict(
     IC_SELECT_METHOD='scalp',       # names the arm in the folder tag; nothing is selected
     PRE_END=3,
+    WAVELET_ON='segment',           # wavelet on the stored 90 s segment, window cut from it
     PRIMARY_MODEL='session',
     MODELS=('session',),
     BASELINE_METHOD='glm',
@@ -81,6 +82,7 @@ COMPONENT = dict(
     # segmentation
     EPOCH_DUR=60,                   # s
     PRE_END=3,                      # s between the end of the window and the report
+    WAVELET_ON='segment',           # wavelet on the stored 90 s segment, window cut from it
     INCLUDE_SAPO=False,             # silent blocks only
     # baseline correction (regression form)
     DO_BASELINE_CORRECT=True,
@@ -210,6 +212,8 @@ PERIOD_HEART = dict(
     MIN_IBI_MS=600,
     MIN_BEATS_PER_PERIOD=50,
     DROP_EDGE_BEATS=True,
+    WAVELET_ON='block',             # wavelet on each period's continuous block, then epochs
+    EDGE_GUARD_S=2.0,               # s of real data required beyond each epoch
 )
 PERIOD_HEART_TFCE = dict(schemes=('ivw_own', 'unweighted'), measures=('hrsp', 'hep', 'hepc'),
                          nperm=5000)
