@@ -61,9 +61,10 @@ for _s in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-from heart_core import reconstruct_ics, epoch_beats, hep_average, morlet_cwt, ppc_map
+from heart_core import (reconstruct_ics, epoch_beats, hep_average, morlet_cwt, ppc_map,
+                        clear_of_joins)
 from get_rr import get_rr, resolve_polarity, GetRRError             # noqa: E402
-from fmt_period import period_block, contrasts_of  # noqa: E402
+from fmt_period import period_block, contrasts_of, period_joins  # noqa: E402
 
 CONFIG = dict(
     IC_SELECT_METHOD='lee',            # functional selection; the only method
@@ -131,7 +132,7 @@ def _wavelet_on(p):
     return w
 
 
-def period_measures(eeg_ic, ecg, fs, p, pol=1, notes=None):
+def period_measures(eeg_ic, ecg, fs, p, pol=1, notes=None, joins=None):
     """HEP / HRSP / HEPC for one continuous period block of one component.
 
     -> dict(measure -> (map, var_map, n_beats)), where `map` is the mean over
@@ -170,6 +171,14 @@ def period_measures(eeg_ic, ecg, fs, p, pol=1, notes=None):
     elif p['DROP_EDGE_BEATS']:
         ok = (pk + lo_s >= 0) & (pk + hi_s < n)
         notes['n_edge_dropped'] = int((~ok).sum())
+        pk = pk[ok]
+    g = int(round(float(p.get('BOUNDARY_GUARD_S') or 0) * fs))
+    if g:
+        if joins is None:
+            raise ValueError('BOUNDARY_GUARD_S is set but this segment file has no '
+                             '`boundaries`; extract it again with extract_npz.py')
+        ok = clear_of_joins(pk, lo_s, hi_s, joins, g)
+        notes['n_join_dropped'] = int((~ok).sum())
         pk = pk[ok]
     if pk.size < int(p['MIN_BEATS_PER_PERIOD']):
         notes['skip_reason'] = ('%d epochable beat(s) < MIN_BEATS_PER_PERIOD %d'
@@ -285,11 +294,12 @@ def lee_select_for_session(z, p, fs, pol, verbose=False):
                                 'is nothing to select on')
         return [], notes
 
-    sigs, ecgs = [], []
+    sigs, ecgs, jns = [], [], []
     for per in sel_periods:
         eeg, ecg, _n = _period_signals(z, per, p)
         if eeg is None or ecg is None:
             continue
+        jns.append(period_joins(z, per))
         comp = reconstruct_ics(eeg, np.asarray(z['icaweights'], float),
                                np.asarray(z['icasphere'], float),
                                np.asarray(z['icachansind']).ravel())
@@ -317,6 +327,16 @@ def lee_select_for_session(z, p, fs, pol, verbose=False):
     hi_s = int(round(hi_ms * fs / 1000.0))
     n = comp.shape[1]
     pk = pk[(pk + lo_s >= 0) & (pk + hi_s < n)]
+    g = int(round(float(p.get('BOUNDARY_GUARD_S') or 0) * fs))
+    if g:
+        if any(j is None for j in jns):
+            raise ValueError('BOUNDARY_GUARD_S is set but this segment file has no '
+                             '`boundaries`; extract it again with extract_npz.py')
+        offs = np.concatenate([[0], np.cumsum([s.shape[1] for s in sigs])[:-1]])
+        allj = np.concatenate([j + o for j, o in zip(jns, offs)] + [offs[1:]])
+        ok = clear_of_joins(pk, lo_s, hi_s, allj, g)
+        notes['n_join_dropped_selection'] = int((~ok).sum())
+        pk = pk[ok]
     cwt_block = _wavelet_on(p) == 'block'
     if cwt_block:
         # Drop beats whose epoch comes within EDGE_GUARD_S of either end of any of the
@@ -433,7 +453,7 @@ def session_periods(npz_path, p, verbose=True):
             notes.setdefault('polarity_flips', {})[per] = int((_sgn < 0).sum())
         sig = np.mean(_sig, axis=0)
         pn = {}
-        res = period_measures(sig, ecg, fs, p, pol=pol, notes=pn)
+        res = period_measures(sig, ecg, fs, p, pol=pol, notes=pn, joins=period_joins(z, per))
         notes.setdefault('per_period', {})[per] = pn
         if res:
             out[per] = res
@@ -480,6 +500,12 @@ def subject_deltas(sessions, p):
     out = {}
     for tag, a, b, _label in contrasts_of(p):
         for meas in p['MEASURES']:
+            if p.get('SAME_SESSION_PAIRS'):
+                # only sessions that hold both periods, so both sides of the difference
+                # come from the same recording (same day, same component)
+                both = [s for s in sessions
+                        if meas in s.get(a, {}) and meas in s.get(b, {})]
+                pooled = pool_periods(both, p)
             va, vb = pooled.get((a, meas)), pooled.get((b, meas))
             if va is None or vb is None:
                 continue
@@ -631,6 +657,10 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
         raise ValueError('unknown BASELINE_METHOD %r' % p['BASELINE_METHOD'])
     if _wavelet_on(p) == 'block':
         tag += '_cwtblock'
+    if float(p.get('BOUNDARY_GUARD_S') or 0) > 0:
+        tag += '_bnd%g' % float(p['BOUNDARY_GUARD_S'])
+    if p.get('SAME_SESSION_PAIRS'):
+        tag += '_samesess'
     out_dir = os.path.join(results_root, 'HEART_PERIOD', tag)
     all_rows = []
     times = None

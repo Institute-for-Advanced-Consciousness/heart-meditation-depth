@@ -168,6 +168,31 @@ def period_block(z, period, key='eeg'):
     return a.reshape(1, n_win * n_s), n_win, n_s
 
 
+def period_joins(z, period):
+    """Joins inside a period's re-joined block, as block sample positions (the first sample
+    after each join). Two kinds: a join left by removed ECG-contaminated samples
+    (`boundaries` of the segment file) inside a window, and the seam between two windows
+    that were not adjacent in the recording. None when the file has no `boundaries`."""
+    k = 'period_%s_spans' % period
+    if 'boundaries' not in z.files or k not in z.files:
+        return None
+    spans = np.asarray(z[k], np.int64).reshape(-1, 2)
+    b = np.asarray(z['boundaries'], np.int64)
+    out = []
+    for w, (s0, s1) in enumerate(spans):
+        n = int(s1 - s0 + 1)
+        if w and s0 != spans[w - 1, 1] + 1:
+            out.append(w * n)
+        # a join at the first sample of a window that follows its neighbour directly is a
+        # join between the two windows, inside the block
+        inside = b[((b >= s0) if w else (b > s0)) & (b <= s1)]
+        if w and s0 == spans[w - 1, 1] + 1 and s0 in b:
+            inside = inside[inside != s0]
+            out.append(w * n)
+        out.extend((w * n + (inside - s0)).tolist())
+    return np.asarray(sorted(out), np.int64)
+
+
 def window_log_power(sig, n_win, win_samp):
     """Mean log10 power per window from a filtered [nSamp] or [nChan x nSamp].
 
@@ -259,6 +284,21 @@ def session_periods(npz_path, p, verbose=True):
             rec['ged'] = window_log_power(comp, n_win, win_samp)
         else:
             rec['ged'] = np.full(n_win, np.nan)
+        # BOUNDARY_GUARD_S: a window within that many seconds of a join is left out (the
+        # theta filter ran across the join)
+        g = int(round(float(p.get('BOUNDARY_GUARD_S') or 0) * fs))
+        if g:
+            jn = period_joins(z, per)
+            if jn is None:
+                raise ValueError('BOUNDARY_GUARD_S is set but this segment file has no '
+                                 '`boundaries`; extract it again with extract_npz.py')
+            starts = np.arange(n_win) * win_samp
+            bad = np.zeros(n_win, bool)
+            for j in jn:
+                bad |= (starts - g < j) & (j < starts + win_samp + g)
+            rec['scalp'][bad] = np.nan
+            rec['ged'][bad] = np.nan
+            rec['n'] = int((~bad).sum())
         out[per] = rec
 
     # -- z-score within session, across every period at once ----------------
@@ -281,7 +321,7 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
                   if os.path.isdir(os.path.join(data_dir, d)) and (d.startswith('sub-') or d.isdigit()))
     if limit:
         subs = subs[:int(limit)]
-    per_sub, records = {}, []
+    per_sub, records, per_ses = {}, [], {}
     for sid in subs:
         sdir = os.path.join(data_dir, sid)
         acc = {}
@@ -303,6 +343,9 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
                 continue
             rec['periods'] = ','.join('%s:%d' % (q, res[q]['n']) for q in res)
             records.append(rec)
+            per_ses.setdefault(sid, []).append(
+                {(q, meas): (np.nanmean(v[meas]), v['n'])
+                 for q, v in res.items() for meas in ('scalp', 'ged')})
             for q, v in res.items():
                 for meas in ('scalp', 'ged'):
                     acc.setdefault((q, meas), []).append(
@@ -318,10 +361,10 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
             per_sub[sid] = {k: (float(np.nanmean([m for m, _ in v])),
                                 int(np.nansum([n for _, n in v])))
                             for k, v in acc.items()}
-    return per_sub, records
+    return per_sub, records, per_ses
 
 
-def run_l2(per_sub, p, verbose=True):
+def run_l2(per_sub, p, verbose=True, per_ses=None):
     """Sign-flip t-test on the per-subject contrast deltas. -> rows."""
     rows = []
     subs = sorted(per_sub)
@@ -331,6 +374,15 @@ def run_l2(per_sub, p, verbose=True):
             for s in subs:
                 va = per_sub[s].get((a, meas))
                 vb = per_sub[s].get((b, meas))
+                if p.get('SAME_SESSION_PAIRS') and per_ses is not None:
+                    # only sessions holding both periods (same day, same filter)
+                    both = [x for x in per_ses.get(s, [])
+                            if np.isfinite(x.get((a, meas), (np.nan, 0))[0])
+                            and np.isfinite(x.get((b, meas), (np.nan, 0))[0])]
+                    va = ((float(np.mean([x[(a, meas)][0] for x in both])),
+                           int(np.sum([x[(a, meas)][1] for x in both]))) if both else None)
+                    vb = ((float(np.mean([x[(b, meas)][0] for x in both])),
+                           int(np.sum([x[(b, meas)][1] for x in both]))) if both else None)
                 if va is None or vb is None:
                     continue
                 if not (np.isfinite(va[0]) and np.isfinite(vb[0])):
@@ -404,6 +456,10 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
         p['THETA_BP'][0], p['THETA_BP'][1], p['GED_TEMPLATE_ELEC'],
         p['GED_R2_THRESH'], '+'.join(_short(q) for q in p['GED_TRAIN_ON']),
         len(p['PERIODS']))
+    if float(p.get('BOUNDARY_GUARD_S') or 0) > 0:
+        tag += '_bnd%g' % float(p['BOUNDARY_GUARD_S'])
+    if p.get('SAME_SESSION_PAIRS'):
+        tag += '_samesess'
     out_dir = os.path.join(results_root, 'FMT_PERIOD', tag, 'main')
     os.makedirs(out_dir, exist_ok=True)
     if verbose:
@@ -416,8 +472,8 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
                  p['GED_R2_THRESH'], '+'.join(p['GED_TRAIN_ON'])))
         print('=' * 74)
 
-    per_sub, records = build_cohort(data_dir, p, limit=limit, verbose=verbose)
-    rows = run_l2(per_sub, p, verbose=verbose)
+    per_sub, records, per_ses = build_cohort(data_dir, p, limit=limit, verbose=verbose)
+    rows = run_l2(per_sub, p, verbose=verbose, per_ses=per_ses)
 
     _write_csv(os.path.join(out_dir, 'fmt_period_L2.csv'), rows,
                ['Contrast', 'Label', 'Measure', 'Scheme', 'n', 't', 'p',

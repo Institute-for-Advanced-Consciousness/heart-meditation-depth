@@ -56,7 +56,8 @@ import numpy as np
 # `w_ic @ eeg` for one selected IC.
 from heart_depth_pipeline import (DEFAULT_PARAMS, window_indices,
                                   tlims_mask)
-from heart_core import morlet_cwt, ppc_map, ecg_polarity, detect_rpeaks as _detect_rpeaks_raw
+from heart_core import (morlet_cwt, ppc_map, ecg_polarity, detect_rpeaks as _detect_rpeaks_raw,
+                        clear_of_joins)
 from get_rr import get_rr, resolve_polarity, GetRRError
 from rr_cleaning import clean_rr, qrs_bandpass
 from ecg_quality import (clean_ratio_segments, ibi_short_prop,
@@ -239,6 +240,12 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     if _won not in ('window', 'segment'):
         raise ValueError(f"WAVELET_ON must be 'window' or 'segment', got {_won!r}")
     _cwt_seg = _won == 'segment'
+    _rule = str(p.get('OVERLAP_RULE', 'drop'))
+    if _rule not in ('drop', 'trim'):
+        raise ValueError(f"OVERLAP_RULE must be 'drop' or 'trim', got {_rule!r}")
+    # {segment index: usable length in window samples} for windows trimmed by the next one
+    # (OVERLAP_RULE='trim'; see heart_depth_pipeline.DEFAULT_PARAMS)
+    seg_lim = {}
 
     # -- GATE 1c: resolve overlaps at the ANALYSIS duration ------------------
     ov_key = 'overlap_resolved' in d.files
@@ -254,7 +261,13 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
         drop = []
         for a_ in range(len(kept_ix) - 1):
             if ends[a_] > starts[a_ + 1]:
-                drop.append(kept_ix[a_]); n_ov += 1
+                n_ov += 1
+                lim = int(starts[a_ + 1] - starts[a_])
+                if _rule == 'trim' and lim >= float(p.get('OVERLAP_MIN_S', 30)) * fs:
+                    seg_lim[int(kept_ix[a_])] = lim
+                else:
+                    drop.append(kept_ix[a_])
+        notes['n_window_trimmed'] = len(seg_lim)
         if drop:
             keep[np.asarray(drop)] = False
     notes['n_window_overlaps'] = n_ov
@@ -313,6 +326,8 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
                     f'seg {int(k)}: {exc}')
         else:
             pk = _detect_rpeaks_raw(_win, fs)
+        if int(k) in seg_lim:
+            pk = pk[pk < seg_lim[int(k)]]
         seg_peaks_abs.append(pk.astype(np.int64) + a)
         _bp = qrs_bandpass(_win, fs)
         seg_peaks_amp.append(_bp[pk.astype(np.int64)]
@@ -321,8 +336,8 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     raw_abs_all = (np.concatenate(seg_peaks_abs) if seg_peaks_abs
                    else np.array([], np.int64))
     win_spans = np.array([[int(seg_abs[k][0]) + w0,
-                           int(seg_abs[k][0]) + w1 - 1] for k in idx_keep],
-                         dtype=np.int64)
+                           int(seg_abs[k][0]) + w0 + seg_lim.get(int(k), w1 - w0) - 1]
+                          for k in idx_keep], dtype=np.int64)
     notes['n_beats_detected'] = int(raw_abs_all.size)
 
     # -- RR CLEANING, POOLED PER MEDITATION BLOCK (as on the IC route) ------
@@ -427,7 +442,8 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
                 seg_ecg=seg_ecg, depth=depth, cond=cond, ch_names=ch_names,
                 nC=nC, idx_keep=idx_keep, seg_peaks_abs=seg_peaks_abs,
                 seg_abs=seg_abs, w0=w0, w1=w1, n=n, lo=lo, hi=hi,
-                times=times, freqs=freqs, nT=nT, seg_len=seg_len, cwt_seg=_cwt_seg)
+                times=times, freqs=freqs, nT=nT, seg_len=seg_len, cwt_seg=_cwt_seg,
+                seg_lim=seg_lim)
 
 
 def session_measures_scalp(npz_path, p, verbose=True, notes=None):
@@ -462,6 +478,11 @@ def session_measures_scalp(npz_path, p, verbose=True, notes=None):
     w0, w1, n, lo, hi = ctx['w0'], ctx['w1'], ctx['n'], ctx['lo'], ctx['hi']
     times, freqs, nT = ctx['times'], ctx['freqs'], ctx['nT']
     seg_len, _cwt_seg = ctx['seg_len'], ctx['cwt_seg']
+    d = ctx['d']
+    _bguard = int(round(float(p.get('BOUNDARY_GUARD_S') or 0) * fs))
+    if _bguard and 'boundaries' not in d.files:
+        raise ValueError(f'{tag}: BOUNDARY_GUARD_S is set but this segment file has no '
+                         '`boundaries`; extract it again with extract_npz.py')
 
     # -- PER SEGMENT: epochable beats, then one full-channel CWT per segment --
     nF = len(freqs)
@@ -475,7 +496,10 @@ def session_measures_scalp(npz_path, p, verbose=True, notes=None):
         a = int(seg_abs[k][0]) + w0
         pk = seg_peaks_abs[j] - a
         # only beats whose full epoch fits inside the segment
-        pk = pk[(pk + lo >= 0) & (pk + hi < n)]
+        pk = pk[(pk + lo >= 0) & (pk + hi < ctx['seg_lim'].get(int(k), n))]
+        if _bguard:
+            pk = pk[clear_of_joins(pk, lo, hi, np.asarray(d['boundaries'], np.int64) - a,
+                                   _bguard)]
         seg_nbeat.append(int(pk.size))
         if pk.size < int(p.get('MIN_BEATS_UNIT', 1)):
             seg_ok.append(False)

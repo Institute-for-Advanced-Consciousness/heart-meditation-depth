@@ -60,6 +60,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import heart_depth_pipeline as HDP                               # noqa: E402
 from get_rr import get_rr, resolve_polarity, GetRRError      # noqa: E402
+from heart_core import intervals_clear_of_joins                 # noqa: E402
 from fmt_depth_pipeline import signflip_ttest                    # noqa: E402
 
 # The four variables, in the order the paper reports them. `resp_amp` is the
@@ -90,7 +91,7 @@ N_PERM = 10000
 
 
 def segment_features(ecg_win, resp_seg, fs, resp_band=(0.1, 1.0),
-                     win=(None, None)):
+                     win=(None, None), joins=None):
     """Autonomic features for one analysed segment.
 
     `ecg_win` is the analysis window already sliced and already polarity-
@@ -107,7 +108,18 @@ def segment_features(ecg_win, resp_seg, fs, resp_band=(0.1, 1.0),
                        drop_first=False)
     except (GetRRError, ValueError):
         pk = np.array([], np.int64)
-    if pk.size >= 2:
+    if pk.size >= 2 and joins is not None:
+        # `joins` (window samples): no interval across a join, and successive
+        # differences only between two adjacent intervals that are both kept
+        ibi = np.diff(np.asarray(pk, float)) / fs * 1000.0
+        ok = (intervals_clear_of_joins(pk, joins)
+              & (ibi >= IBI_MIN_MS) & (ibi <= IBI_MAX_MS))
+        if ok.sum() >= MIN_IBI_PER_SEG:
+            out['hr_ms'] = float(np.mean(ibi[ok]))
+            pair = ok[:-1] & ok[1:]
+            if pair.any():
+                out['rmssd'] = float(np.sqrt(np.mean(np.diff(ibi)[pair] ** 2)))
+    elif pk.size >= 2:
         ibi = np.diff(np.asarray(pk, float)) / fs * 1000.0
         ibi = ibi[(ibi >= IBI_MIN_MS) & (ibi <= IBI_MAX_MS)]
         if ibi.size >= MIN_IBI_PER_SEG:
@@ -185,9 +197,16 @@ def recording_table(npz_path, p):
         for k in idx:
             rs = (np.asarray(seg_resp[k, :int(seg_len[k])], float)
                   if has_resp else None)
+            jn = None
+            if float(p.get('BOUNDARY_GUARD_S') or 0) > 0:
+                if 'boundaries' not in d.files:
+                    raise ValueError('BOUNDARY_GUARD_S is set but %s has no `boundaries`'
+                                     % npz_path)
+                jn = (np.asarray(d['boundaries'], np.int64)
+                      - (int(np.asarray(d['seg_span'])[k, 0]) + w0))
             f = segment_features(pol * np.asarray(seg_ecg[k, w0:w1], float),
                                  rs, fs, p.get('RESP_BAND', (0.1, 1.0)),
-                                 win=(w0, w1))
+                                 win=(w0, w1), joins=jn)
             if not np.isfinite(f['hr_ms']):
                 continue                      # no usable beat train: no segment
             for v in VARIABLES:

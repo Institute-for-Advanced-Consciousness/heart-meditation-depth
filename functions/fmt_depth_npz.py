@@ -156,6 +156,11 @@ PARAMS = dict(
     GED_MAX_COMP=1,
     STANDARDIZE_WITHIN_SESSION=True,
 
+    # == OVERLAPS AND JOINS (see heart_depth_pipeline.DEFAULT_PARAMS) =======
+    OVERLAP_RULE='drop',     # 'drop' | 'trim' (earlier window kept to the next one's start)
+    OVERLAP_MIN_S=30,
+    BOUNDARY_GUARD_S=0,      # s of samples excluded each side of a join (0 = none)
+
     # == STATISTICS =========================================================
     L1_METHOD='WLS',
     nPerm=1000,
@@ -238,6 +243,8 @@ def load_npz_session(npz_path):
         # the meditation-block spans, for the recording-length lower bound
         'block_spans': (d['block_spans'] if 'block_spans' in d.files
                         else np.empty((0, 2))),
+        # joins left by the removed ECG-contaminated samples (None in older files)
+        'boundaries': d['boundaries'] if 'boundaries' in d.files else None,
         # Extraction geometry written by the extractor, so a consumer never has to
         # assume it. `None` marks a file without the keys; the caller announces the
         # fallback rather than guessing.
@@ -513,13 +520,21 @@ for subj_id, session_paths in all_sessions.items():
             print(f'  {subj_id} ses{i_ses}: .npz predates the overlap-provenance '
                   f'key - ASSUMING it was resolved at extraction.')
         n_overlap = 0
+        seg_lim = {}   # {segment index: usable window length} under OVERLAP_RULE='trim'
         if not ov_flag and idx.size > 1:
             span_all = np.asarray(sess['seg_span'])
             order = idx[np.argsort(span_all[idx, 0])]
             starts_abs = span_all[order, 0] + lo
             ends_abs = span_all[order, 0] + hi            # exclusive
-            drop = [int(order[a]) for a in range(len(order) - 1)
-                    if ends_abs[a] > starts_abs[a + 1]]
+            drop = []
+            for a in range(len(order) - 1):
+                if ends_abs[a] > starts_abs[a + 1]:
+                    _lim = int(starts_abs[a + 1] - starts_abs[a])
+                    if (P.get('OVERLAP_RULE', 'drop') == 'trim'
+                            and _lim >= float(P.get('OVERLAP_MIN_S', 30)) * fs):
+                        seg_lim[int(order[a])] = _lim
+                    else:
+                        drop.append(int(order[a]))
             n_overlap = len(drop)
             # Record each dropped pair's overlap, so that the pairs the trim rule above
             # would have kept (overlap of 3 s or less) can be counted; the run prints the
@@ -576,6 +591,7 @@ for subj_id, session_paths in all_sessions.items():
 
         eeg_segs = eeg_segs[keep_cond]
         eeg_full = [eeg_full[k] for k in np.flatnonzero(keep_cond)]
+        idx_f = np.asarray(idx)[keep_cond]
         depth = depth[keep_cond]
         cond = cond[keep_cond]
         subcond = subcond[keep_cond]
@@ -597,6 +613,32 @@ for subj_id, session_paths in all_sessions.items():
                 eeg_full[i], fs, P['THETA_BP'][0], P['THETA_BP'][1])[:, lo:hi]
         del eeg_full
         broadband_segs = eeg_segs
+
+        # Samples each window's power is averaged over: 2 s in from both ends, up to the
+        # next window's start for a trimmed window, and none within BOUNDARY_GUARD_S of a
+        # join.
+        trim = int(2.0 * fs)  # 2s trim
+        _g = int(round(float(P.get('BOUNDARY_GUARD_S') or 0) * fs))
+        if _g and sess.get('boundaries') is None:
+            raise SystemExit('BOUNDARY_GUARD_S is set but %s ses%d has no `boundaries`; '
+                             'extract the segment files again' % (subj_id, i_ses))
+        _W = theta_segs.shape[2]
+        # own[i]: samples window i owns (up to the next window's start when trimmed) and
+        # that are not within the guard of a join
+        own = np.ones((n_seg_f, _W), bool)
+        for i in range(n_seg_f):
+            own[i, seg_lim.get(int(idx_f[i]), _W):] = False
+            if _g:
+                _a = int(np.asarray(sess['seg_span'])[idx_f[i], 0]) + lo
+                for _j in np.asarray(sess['boundaries'], np.int64) - _a:
+                    if -_g < _j < _W + _g:
+                        own[i, max(0, _j - _g):max(0, min(_W, _j + _g))] = False
+        # power: 2 s in from both window ends, owned samples only
+        vmask = np.zeros((n_seg_f, _W), bool)
+        vmask[:, trim:epoch_samples - trim + 1] = True
+        vmask &= own
+        # GED covariance: every owned sample (it never had the 2 s edge trim)
+        cov_mask = own
 
         # --- Scalp Brandmeyer power ---
         # A label matching no channel is reported; matching NONE raises, because
@@ -623,22 +665,20 @@ for subj_id, session_paths in all_sessions.items():
         # NaN, not 0: a segment whose window is too short must be missing, not a
         # log-power of exactly zero sitting in the middle of the distribution.
         scalp_pow = np.full(n_seg_f, np.nan)
-        trim = int(2.0 * fs)  # 2s trim
         for i in range(n_seg_f):
             pow_ts = np.mean(theta_segs[i, brand_ix, :] ** 2, axis=0)
-            s0, s1 = trim, epoch_samples - trim
-            if s1 - s0 + 1 >= fs:
+            if vmask[i].sum() >= fs:
                 if not floor_checked:
-                    _assert_floor_negligible(pow_ts[s0:s1 + 1],
+                    _assert_floor_negligible(pow_ts[vmask[i]],
                                              '%s ses%d scalp theta' % (subj_id, i_ses))
                     floor_checked = True
-                scalp_pow[i] = np.mean(np.log10(pow_ts[s0:s1+1] + EPS))
+                scalp_pow[i] = np.mean(np.log10(pow_ts[vmask[i]] + EPS))
 
         # --- GED trained on THIS session's segments ---
         # Build segment mask in the concatenated data space
         # S = cov(theta segments), R = cov(broadband segments) + shrinkage
-        X_theta = np.concatenate([theta_segs[i] for i in range(n_seg_f)], axis=1)  # [nChan x totalSamples]
-        X_broad = np.concatenate([broadband_segs[i] for i in range(n_seg_f)], axis=1)
+        X_theta = np.concatenate([theta_segs[i][:, cov_mask[i]] for i in range(n_seg_f)], axis=1)  # [nChan x totalSamples]
+        X_broad = np.concatenate([broadband_segs[i][:, cov_mask[i]] for i in range(n_seg_f)], axis=1)
         n_t = X_theta.shape[1]
 
         ged_ok = False
@@ -677,13 +717,12 @@ for subj_id, session_paths in all_sessions.items():
                     # the logs would be a geometric mean, a different quantity, and
                     # it is what averaging `ged_pow` instead of the linear power gives.
                     for i in range(n_seg_f):
-                        s0, s1 = trim, epoch_samples - trim
-                        if s1 - s0 + 1 >= fs:
+                        if vmask[i].sum() >= fs:
                             acc = None
                             for k in _use:
                                 ws = np.sign(np.corrcoef(Ag[:, k], tmpl)[0, 1]) or 1
                                 c = (ws * evecs[:, k]) @ theta_segs[i]
-                                acc = c[s0:s1+1] ** 2 if acc is None else acc + c[s0:s1+1] ** 2
+                                acc = c[vmask[i]] ** 2 if acc is None else acc + c[vmask[i]] ** 2
                             ged_pow[i] = np.mean(np.log10(acc / len(_use) + EPS))
                     # `topo` and `r2` describe the FIRST qualifying component
                     # only: a mean forward pattern over different components has

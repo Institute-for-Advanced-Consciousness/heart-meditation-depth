@@ -227,6 +227,29 @@ def epoch_beats(x, peak_samples, win_ms, fs):
     return (ep[:, 0, :] if single else ep), times
 
 
+def clear_of_joins(peaks, i0, i1, joins, guard):
+    """True for each peak whose samples peak+i0 .. peak+i1, widened by `guard` samples on
+    both sides, contain no join. `joins` are the first samples after each join (where
+    removed data were cut out), in the same coordinates as `peaks`."""
+    pk = np.asarray(peaks, dtype=np.int64)
+    j = np.sort(np.asarray(joins, dtype=np.int64).ravel())
+    if pk.size == 0 or j.size == 0:
+        return np.ones(pk.size, bool)
+    lo = pk + int(i0) - int(guard)
+    hi = pk + int(i1) + int(guard)
+    # a join at sample s separates s-1 from s: it is inside when lo < s <= hi
+    return np.searchsorted(j, lo, side='right') == np.searchsorted(j, hi, side='right')
+
+
+def intervals_clear_of_joins(peaks, joins):
+    """True for each interval between consecutive peaks that no join falls inside."""
+    pk = np.sort(np.asarray(peaks, dtype=np.int64))
+    j = np.sort(np.asarray(joins, dtype=np.int64).ravel())
+    if pk.size < 2 or j.size == 0:
+        return np.ones(max(pk.size - 1, 0), bool)
+    return np.searchsorted(j, pk[:-1], side='right') == np.searchsorted(j, pk[1:], side='right')
+
+
 # ---------------------------------------------------------------------------
 # Cardiac field topography (diagnostic)
 # ---------------------------------------------------------------------------

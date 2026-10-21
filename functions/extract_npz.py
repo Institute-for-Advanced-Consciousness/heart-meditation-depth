@@ -575,6 +575,21 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         ecg_data = np.full(n_pts, np.nan)
         resp_data = np.full(n_pts, np.nan)
 
+    # --- Joins left by the removal of ECG-contaminated samples ---
+    # EEGLAB marks each join with a 'boundary' event at the half sample between the two
+    # pieces; the index stored is the first sample after the join (0-based). The data on
+    # either side were not adjacent in time, so filters, wavelets and inter-beat intervals
+    # must not be taken across one.
+    try:
+        ev = read_mat(filepath, variable_names=['event'])['event']
+        lat = np.asarray(ev['latency'], float).ravel()
+        typ = np.asarray(ev['type'], dtype=object).ravel()
+        boundaries = np.unique(np.round(lat[typ == 'boundary'] - 0.5).astype(np.int64))
+        boundaries = boundaries[(boundaries > 0) & (boundaries < n_pts)]
+    except Exception as e:
+        print(f'    WARNING: Could not read boundary events ({e})')
+        boundaries = np.array([], np.int64)
+
     # --- Load ICA weights via pymatreader ---
     # icasphere is required, not optional. EEGLAB reconstructs activations as
     #     ic_act = icaweights * icasphere * data(icachansind,:)
@@ -693,7 +708,7 @@ def extract_session(data_path, output_dir, subject_id, session_num):
                 per_ecg[j] = ecg_data[s0:s1 + 1].astype(np.float32)
                 per_resp[j] = resp_data[s0:s1 + 1].astype(np.float32)
             period_data[pname] = {'eeg': per_eeg, 'ecg': per_ecg, 'resp': per_resp,
-                                  'n_windows': len(pwins)}
+                                  'n_windows': len(pwins), 'spans': np.asarray(pwins, np.int64)}
             print(f'    Period {pname}: {len(pwins)} windows ({PERIOD_WIN_DUR}s each)')
 
     # --- Meditation block spans (continuous, for block-restricted detection) ---
@@ -786,6 +801,9 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         'block_spans': block_spans,
         'block_names': np.array(block_names, dtype=object),
         'block_sources': np.array(block_sources, dtype=object),
+        # Joins left by the ECG-contaminated samples removed in preprocessing: index of the
+        # first sample after each join, in the same coordinates as seg_span.
+        'boundaries': boundaries,
         # Periods (fixed-length windows -> 3D arrays)
     }
 
@@ -795,6 +813,8 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         save_dict[f'period_{pname}_ecg'] = pd['ecg']
         save_dict[f'period_{pname}_resp'] = pd['resp']
         save_dict[f'period_{pname}_nwin'] = pd['n_windows']
+        # [start, end] sample of each 4 s window, in the coordinates of `boundaries`
+        save_dict[f'period_{pname}_spans'] = pd.get('spans', np.empty((0, 2), np.int64))
 
     np.savez_compressed(out_file, **save_dict)
 

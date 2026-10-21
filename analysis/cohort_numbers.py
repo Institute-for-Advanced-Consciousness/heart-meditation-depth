@@ -39,6 +39,7 @@ import adjusted_depth_means as AD                                  # noqa: E402
 import outcomes as OC                                          # noqa: E402
 from figure3_participant_flow import participants, silent_reports  # noqa: E402
 from heart_depth_run import DEFAULT_RUN_PARAMS                 # noqa: E402
+from heart_depth_pipeline import window_indices                    # noqa: E402
 from run_component_group_tests import run_root                     # noqa: E402
 
 SILENT, DEPTHS = 0, (1, 2, 3, 4, 5)
@@ -167,8 +168,7 @@ def cohort(root):
                                                [int((lv == k).sum()) for k in (2, 3, 4, 5)]))
 
     # segments per depth level, recounted from the segment files with the overlap rule
-    win = float(config.COMPONENT_SETTINGS[config.PRIMARY].get(
-        'EPOCH_DUR', DEFAULT_RUN_PARAMS.get('EPOCH_DUR')))
+    prm = dict(DEFAULT_RUN_PARAMS, **config.COMPONENT_SETTINGS[config.PRIMARY])
     tot, differ = np.zeros(len(DEPTHS), int), 0
     for r in kept:
         with np.load(os.path.join(config.DATA_DIR, r['subject'], 'ses%s.npz' % r['session']),
@@ -177,11 +177,17 @@ def cohort(root):
             dep = np.asarray(z['seg_depth']).astype(int)
             cnd = np.asarray(z['seg_cond']).astype(int)
             span = np.atleast_2d(np.asarray(z['seg_span'])).astype(np.int64)
-        keep = (cnd == SILENT) & np.isin(dep, DEPTHS)
+            seg_len = np.asarray(z['seg_len'])
+        # the pipeline's own window and overlap rule (heart_depth_pipeline)
+        w0, w1, w_ok = window_indices(seg_len, fs, prm['EPOCH_DUR'], prm['PRE_END'])
+        keep = (cnd == SILENT) & np.isin(dep, DEPTHS) & w_ok
         ix = np.where(keep)[0]
         ix = ix[np.argsort(span[ix, 0])]
-        st = span[ix, 0]
-        drop = [ix[a] for a in range(len(ix) - 1) if st[a] + win * fs > st[a + 1]]
+        st = span[ix, 0] + w0
+        en = span[ix, 0] + w1
+        trim = prm.get('OVERLAP_RULE', 'drop') == 'trim'
+        drop = [ix[a] for a in range(len(ix) - 1) if en[a] > st[a + 1]
+                and not (trim and st[a + 1] - st[a] >= float(prm.get('OVERLAP_MIN_S', 30)) * fs)]
         keep[np.asarray(drop, int)] = False
         differ += int(keep.sum()) != int(r['n_seg_used'])
         for k, dv in enumerate(DEPTHS):

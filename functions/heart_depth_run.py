@@ -54,9 +54,7 @@ after it). Consequences, both reported:
     lower bound. `BORDERLINE_MARGIN_MIN` also warns for any kept session within
     15 min of the gate, where the proxy is too weak to decide either way.
 
-On the shipped segment files (data/segments, config.DATA_DIR) the lower
-bounds lie far from the 45 min gate on either side, so the gate is unambiguous
-on this cohort; `_report_duration_proxy` prints their range at every run.
+`_report_duration_proxy` prints the range of the lower bounds at every run.
 
 The epoch window belongs to session_measures
 --------------------------------------------
@@ -270,8 +268,7 @@ EXTRACT_MIN_CONF = 4            # confidence floor applied at extraction
 # A KEPT session whose duration lower bound sits within this many minutes of
 # MIN_SESSION_MIN is one the proxy is too weak to adjudicate: the true duration
 # is above the bound, but so is the bound's own uncertainty. Warned, never
-# silently kept. Never fires on the shipped cohort, whose kept bounds lie well
-# above the 45 min gate.
+# silently kept.
 BORDERLINE_MARGIN_MIN = 15.0
 
 # ===========================================================================
@@ -825,7 +822,8 @@ def _minimal_session_npz(npz_path, p):
         # resolved. A buffer that dropped the key would skip overlap resolution,
         # and only for the sessions that had something filtered.
         _prov = {k: np.asarray(d[k]) for k in
-                 ('extract_epoch_dur', 'extract_pre_end', 'overlap_resolved')
+                 ('extract_epoch_dur', 'extract_pre_end', 'overlap_resolved',
+                  'boundaries')
                  if k in d.files}
 
         buf = io.BytesIO()

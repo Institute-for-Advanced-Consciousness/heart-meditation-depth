@@ -105,7 +105,11 @@ def main():
 
     rows = flow_table()
     kept = [r for r in rows if r['run_status'] == 'kept']
-    # under 45 min: absent from the run (never preprocessed), or dropped by its MIN_SESSION_MIN gate
+    # under the length threshold: absent from the run (never preprocessed), or dropped by its
+    # MIN_SESSION_MIN gate
+    min_len = float(config.COMPONENT_SETTINGS[config.PRIMARY].get('MIN_SESSION_MIN') or 0)
+    trim = config.COMPONENT_SETTINGS[config.PRIMARY].get('OVERLAP_RULE', 'drop') == 'trim'
+    min_keep = float(config.COMPONENT_SETTINGS[config.PRIMARY].get('OVERLAP_MIN_S', 30))
     short = [r for r in rows if r['run_status'] == 'not in run'
              or 'MIN_SESSION_MIN' in r['run_reason']]
     depths = [r for r in rows if 'MIN_DEPTHS' in r['run_reason']]
@@ -129,7 +133,7 @@ def main():
     # the chain must close
     assert n_subj == n_preproc and len(rows) == 2 * n_subj
     assert len(kept) + len(short) + len(depths) == len(rows), 'unaccounted recording'
-    assert all(float(r['last_event_min']) < 45 for r in short)
+    assert all(float(r['last_event_min']) < max(min_len, 45) for r in short)
     assert all(num(r, 'unpaired') == 0 for r in rows)
     assert n_conf_kept + sum(num(r, 'reports_conf4') for r in short + depths) == n_conf
     assert len(per_subj) == n_subj and 2 * n_two + n_one == len(kept)
@@ -148,13 +152,15 @@ def main():
          '%d participants with two, %d with one' % (len(kept), n_win, n_two, n_one),
          'Recordings excluded  (n = %d; %d reports)\n'
          '%d with < 2 distinct depth levels\n'
-         '%d shorter than 45 min\n'
-         'Reports with no usable segment in the cleaned data  (n = %d)'
          % (len(short) + len(depths), sum(num(r, 'reports_conf4') for r in short + depths),
-            len(depths), len(short), n_nowin)),
+            len(depths))
+         + ('%d shorter than %g min\n' % (len(short), min_len) if short else '')
+         + 'Reports with no usable segment in the cleaned data  (n = %d)' % n_nowin),
         ('Segments analysed\nn = %d  (%d participants)' % (n_used, n_subj),
-         'Segments removed because they overlapped\nthe next segment  (n = %d segments)'
-         % n_overlap),
+         ('Segments removed because they overlapped the next\nwith less than %g s of their '
+          'own left  (n = %d)' % (min_keep, n_overlap)) if trim else
+         ('Segments removed because they overlapped\nthe next segment  (n = %d segments)'
+          % n_overlap)),
     ]
 
     with plt.rc_context(F.PAPER_RC):

@@ -175,6 +175,10 @@ def fmt_depth_tag(p):
     if p.get('STANDARDIZE_WITHIN_SESSION'):
         t.append('standardized')
     t.append(f"th{p['THETA_BP'][0]:g}-{p['THETA_BP'][1]:g}")
+    if p.get('OVERLAP_RULE', 'drop') != 'drop':
+        t.append(f"trim{float(p.get('OVERLAP_MIN_S', 30)):g}")
+    if float(p.get('BOUNDARY_GUARD_S') or 0) > 0:
+        t.append(f"bnd{float(p['BOUNDARY_GUARD_S']):g}")
     elecs = _as_labels(p.get('FMT_ELECS'))
     if tuple(sorted(x.lower() for x in elecs)) != TAG_DEFAULTS['FMT_ELECS']:
         t.append(f"elec{len(elecs)}x{_hash_labels(elecs)}")
@@ -212,6 +216,10 @@ def heart_depth_tag(p):
     t.append(f"w{p['HRSP_WAVE_WIDTH']:g}")
     if p.get('WAVELET_ON', 'window') != 'window':
         t.append('cwtseg')
+    if p.get('OVERLAP_RULE', 'drop') != 'drop':
+        t.append(f"trim{float(p.get('OVERLAP_MIN_S', 30)):g}")
+    if float(p.get('BOUNDARY_GUARD_S') or 0) > 0:
+        t.append(f"bnd{float(p['BOUNDARY_GUARD_S']):g}")
     t.append(f"f{p['HRSP_FREQS'][0]:g}to{p['HRSP_FREQS'][-1]:g}")
     if p.get('PRIMARY_MODEL', 'session') != 'unadj':
         t.append(f"prim-{p.get('PRIMARY_MODEL', 'session')}")
@@ -302,6 +310,10 @@ def heart_run_tag(p):
         t.append(f"pre{p['PRE_END']:g}")
     if p.get('WAVELET_ON', 'window') != 'window':
         t.append('cwtseg')
+    if p.get('OVERLAP_RULE', 'drop') != 'drop':
+        t.append(f"trim{float(p.get('OVERLAP_MIN_S', 30)):g}")
+    if float(p.get('BOUNDARY_GUARD_S') or 0) > 0:
+        t.append(f"bnd{float(p['BOUNDARY_GUARD_S']):g}")
     lbl = run_label_token(p)
     if lbl:
         t.append(lbl)

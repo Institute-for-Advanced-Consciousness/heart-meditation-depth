@@ -53,7 +53,8 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 from heart_core import (reconstruct_ics, morlet_cwt, ppc_map, hep_average, ecg_polarity,
-                        _detect_rpeaks_raw, cfa_topo_template, cfa_topo_r2)
+                        _detect_rpeaks_raw, cfa_topo_template, cfa_topo_r2,
+                        clear_of_joins, intervals_clear_of_joins)
 from lee_selection import select_ics_lee
 from l1_slopes import cell_ols
 from rr_cleaning import clean_rr, qrs_bandpass
@@ -115,6 +116,18 @@ DEFAULT_PARAMS = dict(
     # (at PRE_END=10, 22 s before the window and 8 s after it). Folder token
     # 'cwtseg'.
     WAVELET_ON='window',
+    # Two analysis windows overlap when their reports are less than EPOCH_DUR apart.
+    # 'drop': the earlier window is discarded. 'trim': the earlier window is kept up
+    # to the start of the next one (only its heartbeats whose whole epoch ends
+    # before that point are used) when at least OVERLAP_MIN_S remain, and
+    # discarded otherwise. Folder token 'trim<OVERLAP_MIN_S>'.
+    OVERLAP_RULE='drop',
+    OVERLAP_MIN_S=30,
+    # Joins left by the removal of ECG-contaminated samples (the `boundaries` of the segment
+    # files). With BOUNDARY_GUARD_S > 0, a heartbeat whose epoch comes within that many
+    # seconds of a join is not used, and no inter-beat interval is taken across a join.
+    # 0 keeps every heartbeat.
+    BOUNDARY_GUARD_S=0,
 
     # --- The statistical window (trim) ---
     # The measures are computed over HEP_WIN and the model is fit over TLIMS:
@@ -439,7 +452,8 @@ def tlims_mask(times, tlims):
 # PER-SEGMENT COVARIATES
 # ===========================================================================
 def segment_covariates(p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg,
-                       seg_len, times, fs, w0, w1, lo, hi, comp_sig, notes):
+                       seg_len, times, fs, w0, w1, lo, hi, comp_sig, notes,
+                       seg_lim=None, rr_peaks=None):
     """The `segcov` dict for one session, or None when KEEP_SEGCOV is off.
 
     `comp_sig` is the {segment index -> 1-D analysed-window signal} mapping used
@@ -499,7 +513,14 @@ def segment_covariates(p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg,
             # inside the segment and is NaN, never 0.
             if pk.size > 1:
                 rr_ms = np.diff(np.sort(pk)) / fs * 1000.0
-                rr_seg[j] = float(np.mean(rr_ms))
+                if float(p.get('BOUNDARY_GUARD_S') or 0) > 0 and 'boundaries' in d.files:
+                    # Intervals from the beats before the join guard (so a guard gap is not
+                    # an interval), leaving out every interval that spans a join.
+                    pr = np.sort(rr_peaks[j]) if rr_peaks is not None else np.sort(pk)
+                    a_ = int(np.asarray(d['seg_span'])[k, 0]) + w0
+                    ok_ = intervals_clear_of_joins(pr, np.asarray(d['boundaries']) - a_)
+                    rr_ms = (np.diff(pr) / fs * 1000.0)[ok_]
+                rr_seg[j] = float(np.mean(rr_ms)) if rr_ms.size else np.nan
             # -- ECG amplitude, RAW trace ------------------------------------
             # The raw ECG, not the 3-35 Hz QRS-detection trace: that high-pass
             # strongly attenuates the low-frequency T-wave, which is what
@@ -558,6 +579,8 @@ def segment_covariates(p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg,
                 sig_j = np.asarray(_xs[j], float)[None, :]
             else:
                 sig_j = np.asarray(seg_eeg[k_, :, w0:w1], float)
+            if seg_lim and int(k_) in seg_lim:
+                sig_j = sig_j[:, :seg_lim[int(k_)]]     # a trimmed window: its own samples only
             state_seg[j] = segment_band_power(sig_j, fs, bands, trim_s)
         for b, nm in enumerate(('theta', 'alpha', 'beta')[:len(bands)]):
             v = state_seg[:, b]
@@ -679,6 +702,11 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     if _won not in ('window', 'segment'):
         raise ValueError(f"WAVELET_ON must be 'window' or 'segment', got {_won!r}")
     _cwt_seg = _won == 'segment'
+    _bguard = int(round(float(p.get('BOUNDARY_GUARD_S') or 0) * fs))
+    if _bguard and 'boundaries' not in d.files:
+        raise ValueError(f'{tag}: BOUNDARY_GUARD_S is set but this segment file has no '
+                         '`boundaries`; extract it again with extract_npz.py')
+    _joins_all = np.asarray(d['boundaries'], np.int64) if 'boundaries' in d.files else None
 
     # -- GATE 1c: resolve overlaps at the analysis duration ------------------
     # The .npz may hold overlapping segments: extract_npz writes
@@ -700,6 +728,12 @@ def session_measures(npz_path, p, verbose=True, notes=None):
               f'{float(p["EXTRACT_EPOCH_DUR"]):g} s). Re-extract to remove the '
               f'assumption.')
     n_ov = 0
+    _rule = str(p.get('OVERLAP_RULE', 'drop'))
+    if _rule not in ('drop', 'trim'):
+        raise ValueError(f"OVERLAP_RULE must be 'drop' or 'trim', got {_rule!r}")
+    # {segment index: last usable sample + 1, in window coordinates} for windows
+    # trimmed by the next one; every other window is usable to its end (n).
+    seg_lim = {}
     if not already and keep.sum() > 1:
         # Absolute bounds of each kept analysis window, in report order.
         span_all = np.asarray(d['seg_span'])
@@ -710,18 +744,28 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         drop = []
         for a_ in range(len(kept_ix) - 1):
             if ends[a_] > starts[a_ + 1]:
-                drop.append(kept_ix[a_])
                 n_ov += 1
-        # The earlier window of an overlapping pair is dropped, not trimmed.
-        # Trimming would make w0/w1 vary per segment, and every downstream index
-        # here (the selection epoch matrix, the measures pass) relies on their
-        # being the same for every segment. A dropped segment is counted and
-        # named (`n_window_overlaps`); a silently variable window would not be.
+                lim = int(starts[a_ + 1] - starts[a_])
+                if _rule == 'trim' and lim >= float(p.get('OVERLAP_MIN_S', 30)) * fs:
+                    seg_lim[int(kept_ix[a_])] = lim
+                else:
+                    drop.append(kept_ix[a_])
+        notes['n_window_trimmed'] = len(seg_lim)
+        if seg_lim and verbose:
+            print(f'  {tag}: {len(seg_lim)} overlapping window(s) TRIMMED to end where the '
+                  f'next begins ({min(seg_lim.values()) / fs:.1f}-'
+                  f'{max(seg_lim.values()) / fs:.1f} s kept)')
+        # Under either rule every window keeps the same w0/w1, on which every
+        # downstream index relies (the selection epoch matrix, the measures pass).
+        # A trimmed window is trimmed in which heartbeats it contributes (seg_lim),
+        # not in its samples; its tonic covariates (segment_covariates) still cover
+        # the whole window. Dropped and trimmed windows are counted
+        # (`n_window_overlaps`, `n_window_trimmed`).
         if drop:
             keep[np.asarray(drop)] = False
             notes['n_seg_window_ok'] = int(keep.sum())
             if verbose:
-                print(f'  {tag}: {n_ov} analysis window(s) OVERLAP at '
+                print(f'  {tag}: {len(drop)} analysis window(s) OVERLAP at '
                       f'{float(p["EPOCH_DUR"]):g} s - the earlier of each pair is '
                       f'dropped (trimming, then dropping under '
                       f'{float(p["EPOCH_DUR"]) - 3:g} s, would give the same result '
@@ -911,6 +955,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             # per segment measured) for an answer that cannot change within a
             # recording: polarity is a property of the electrode montage.
             pk = _detect_rpeaks_raw(_win, fs)
+        if int(k) in seg_lim:
+            # a trimmed window: its beats past the next window's start belong to that window
+            pk = pk[pk < seg_lim[int(k)]]
         seg_peaks_abs.append(pk.astype(np.int64) + a)
         _bp = qrs_bandpass(_win, fs)
         seg_peaks_amp.append(_bp[pk.astype(np.int64)]
@@ -923,8 +970,8 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     raw_abs_all = (np.concatenate(seg_peaks_abs) if seg_peaks_abs
                    else np.array([], np.int64))
     win_spans = np.array([[int(seg_abs[k][0]) + w0,
-                           int(seg_abs[k][0]) + w1 - 1] for k in idx_keep],
-                         dtype=np.int64)
+                           int(seg_abs[k][0]) + w0 + seg_lim.get(int(k), w1 - w0) - 1]
+                          for k in idx_keep], dtype=np.int64)
     notes['n_beats_detected'] = int(raw_abs_all.size)
 
     # -- STAGE B: RR cleaning, pooled per meditation block -------------------
@@ -1084,6 +1131,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
 
     # -- STAGE C: epochable beats, ECG-quality gate, CWT, selection ----------
     seg_peaks, seg_ok, seg_nbeat = [], [], []
+    seg_peaks_rr = []      # the same beats before the join guard (heart-period covariate)
     sel_chunks, ei_rows, offset = [], [], 0
     # The surrogate shift is applied here, and only here. `SURROGATE_SHIFT` is a
     # rigid offset in samples, applied to the cleaned peak train of every
@@ -1136,8 +1184,12 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             _n_before = int(((pk + lo >= 0) & (pk + hi < n)).sum())
             pk = pk + _surr_shift
             _surr_lost += _n_before - int(((pk + lo >= 0) & (pk + hi < n)).sum())
-        # only beats whose FULL epoch fits inside the segment
-        pk = pk[(pk + lo >= 0) & (pk + hi < n)]
+        # only beats whose FULL epoch fits inside the segment (inside its usable
+        # part, for a window trimmed by the next one)
+        pk = pk[(pk + lo >= 0) & (pk + hi < seg_lim.get(int(k), n))]
+        seg_peaks_rr.append(pk)
+        if _bguard:
+            pk = pk[clear_of_joins(pk, lo, hi, _joins_all - a, _bguard)]
         seg_peaks.append(pk); seg_nbeat.append(int(pk.size))
         # A segment with fewer than MIN_BEATS_UNIT epochable beats is not a
         # unit, for any measure.
@@ -1296,8 +1348,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         # above, so no sample is counted twice.
         nf_k, sd_k = 1.0, np.nan
         if bool(p.get('IC_UNIT_VAR_NORM', True)) and xs_k:
-            sd_k = float(np.std(np.concatenate([xs_k[j] for j in sorted(xs_k)]),
-                                ddof=1))
+            sd_k = float(np.std(np.concatenate(
+                [xs_k[j][:seg_lim.get(int(idx_keep[j]), xs_k[j].size)] for j in sorted(xs_k)]),
+                ddof=1))
             if sd_k > 0:
                 nf_k = 1.0 / sd_k
             else:
@@ -1487,7 +1540,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     # removes between-segment covariate variance only.
     segcov = segment_covariates(
         p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg, seg_len, times, fs,
-        w0, w1, lo, hi, _xs, notes)
+        w0, w1, lo, hi, _xs, notes, seg_lim=seg_lim, rr_peaks=seg_peaks_rr)
 
     # -- Opt-in: the exact beats each retained segment was epoched on --------
     # For analyses that must see the same heartbeats as this run on other
