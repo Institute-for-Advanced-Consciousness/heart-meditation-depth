@@ -66,9 +66,9 @@ from glm_baseline import (glm_baseline_regressors, baseline_mask,
 
 EPS = np.finfo(float).eps
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # PARAMETERS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 DEFAULT_PARAMS = dict(
     # --- epoching / measures ---
     HEP_WIN=[-300, 700],           # ms around the R-peak
@@ -231,9 +231,9 @@ DEFAULT_PARAMS = dict(
 )
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # LOADING
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def list_sessions(data_dir):
     """[(subject_id, session, path), ...] for every <subject>/ses<N>.npz in data_dir."""
     out = []
@@ -245,9 +245,9 @@ def list_sessions(data_dir):
 
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE ANALYSIS WINDOW: ONE IMPLEMENTATION, USED BY EVERYONE
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def segment_band_power(eeg, fs, bands, trim_s=2.0):
     """Log mean band power of one segment, over its rows: the tonic state.
 
@@ -432,12 +432,12 @@ def tlims_mask(times, tlims):
     return m
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # PER-SESSION PROCESSING
-# ═══════════════════════════════════════════════════════════════════════════
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
+# ===========================================================================
 # PER-SEGMENT COVARIATES
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def segment_covariates(p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg,
                        seg_len, times, fs, w0, w1, lo, hi, comp_sig, notes):
     """The `segcov` dict for one session, or None when KEEP_SEGCOV is off.
@@ -492,7 +492,7 @@ def segment_covariates(p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg,
             if pk.size == 0:
                 continue
             eix = np.stack([np.arange(q + lo, q + hi + 1) for q in pk])
-            # ── RR: within this segment only ────────────────────────────────
+            # -- RR: within this segment only --------------------------------
             # diff() over a train pooled across segments would measure the gap
             # between depth reports (~147 s at each segment's first beat), not
             # heart rate. The first beat of a segment has no preceding interval
@@ -500,7 +500,7 @@ def segment_covariates(p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg,
             if pk.size > 1:
                 rr_ms = np.diff(np.sort(pk)) / fs * 1000.0
                 rr_seg[j] = float(np.mean(rr_ms))
-            # ── ECG amplitude, RAW trace ────────────────────────────────────
+            # -- ECG amplitude, RAW trace ------------------------------------
             # The raw ECG, not the 3-35 Hz QRS-detection trace: that high-pass
             # strongly attenuates the low-frequency T-wave, which is what
             # ecgAmpT measures.
@@ -509,7 +509,7 @@ def segment_covariates(p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg,
             pb_amp.append(ep[:, a_ix].max(1) - ep[:, a_ix].min(1))
             pb_ampt.append(ep[:, t_ix].max(1) - ep[:, t_ix].min(1))
             pb_seg_ix.append(np.full(pk.size, j, np.int64))
-            # ── respiration ─────────────────────────────────────────────────
+            # -- respiration -------------------------------------------------
             if has_resp:
                 env, ph = _resp_env_phase(
                     np.asarray(seg_resp_all[k, :int(seg_len[k])], float), fs,
@@ -620,7 +620,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     sid = str(d['subject_id']); ses = int(d['session']); fs = float(d['fs'])
     tag = f'{sid} ses{ses}'
 
-    # ── SURROGATE_DROP: a session this draw cannot shift is excluded ────────
+    # -- SURROGATE_DROP: a session this draw cannot shift is excluded --------
     # A session that admits no shift in the permitted band must not contribute
     # its real, unshifted epochs to the surrogate null (that would pull the null
     # toward the real statistic). The driver names such sessions in
@@ -642,7 +642,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
 
     notes['n_seg_stored'] = int(len(depth))
 
-    # ── GATE 1: condition ───────────────────────────────────────────────────
+    # -- GATE 1: condition ---------------------------------------------------
     keep = np.ones(len(depth), bool)
     if not p['INCLUDE_SAPO']:
         keep &= (cond == 0)
@@ -650,10 +650,10 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     notes['n_seg_cond'] = int(keep.sum())
     if keep.sum() == 0:
         notes['skip_reason'] = 'no segment in the analysed condition/depth set'
-        if verbose: print(f'  {tag}: no segments in DEPTH_LEVELS — skipped')
+        if verbose: print(f'  {tag}: no segments in DEPTH_LEVELS - skipped')
         return None
 
-    # ── GATE 1b: is the requested window actually stored for this segment? ──
+    # -- GATE 1b: is the requested window actually stored for this segment? --
     # Anchoring, not length (see window_indices): the stored segment is anchored
     # at its start and its end moves whenever two depth reports fall closer
     # together than EXTRACT_EPOCH_DUR, so a segment can be long enough and still
@@ -668,7 +668,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         lost = (np.asarray(seg_len)[keep & ~w_ok] / fs)
         notes['window_refused_dur_s'] = [round(float(v), 1) for v in lost]
         if verbose:
-            print(f'  {tag}: {n_ref} segment(s) REFUSED — the stored segment is '
+            print(f'  {tag}: {n_ref} segment(s) REFUSED - the stored segment is '
                   f'end-truncated ({lost.min():.1f}-{lost.max():.1f} s of '
                   f'{(p["EXTRACT_EPOCH_DUR"] + 1.0 / fs):.1f} s) so it does not '
                   f'contain the {float(p["EPOCH_DUR"]):g} s ending '
@@ -680,7 +680,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         raise ValueError(f"WAVELET_ON must be 'window' or 'segment', got {_won!r}")
     _cwt_seg = _won == 'segment'
 
-    # ── GATE 1c: resolve overlaps at the analysis duration ──────────────────
+    # -- GATE 1c: resolve overlaps at the analysis duration ------------------
     # The .npz may hold overlapping segments: extract_npz writes
     # `overlap_resolved=False` and leaves them whole, because trimming at its
     # own 90 s would discard seconds a shorter analysis window is entitled to.
@@ -695,7 +695,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     already = bool(d['overlap_resolved']) if ov_key else True
     notes['overlap_resolved_at_extraction'] = already
     if not ov_key and verbose:
-        print(f'  {tag}: .npz predates the overlap-provenance key — ASSUMING it '
+        print(f'  {tag}: .npz predates the overlap-provenance key - ASSUMING it '
               f'was resolved at extraction (it was, at '
               f'{float(p["EXTRACT_EPOCH_DUR"]):g} s). Re-extract to remove the '
               f'assumption.')
@@ -722,7 +722,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             notes['n_seg_window_ok'] = int(keep.sum())
             if verbose:
                 print(f'  {tag}: {n_ov} analysis window(s) OVERLAP at '
-                      f'{float(p["EPOCH_DUR"]):g} s — the earlier of each pair is '
+                      f'{float(p["EPOCH_DUR"]):g} s - the earlier of each pair is '
                       f'dropped (trimming, then dropping under '
                       f'{float(p["EPOCH_DUR"]) - 3:g} s, would give the same result '
                       f'above a 3 s overlap)')
@@ -732,21 +732,21 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             f'every segment is end-truncated: none contains the '
             f'{float(p["EPOCH_DUR"]):g} s window ending {float(p["PRE_END"]):g} s '
             f'before the report')
-        if verbose: print(f'  {tag}: no segment holds the window — skipped')
+        if verbose: print(f'  {tag}: no segment holds the window - skipped')
         return None
 
-    # ── GATE 2: MIN_DEPTHS, per session (matches the FMT arm) ───────────────
+    # -- GATE 2: MIN_DEPTHS, per session (matches the FMT arm) ---------------
     if len(set(depth[keep].tolist())) < p['MIN_DEPTHS']:
         notes['skip_reason'] = (f'MIN_DEPTHS: {len(set(depth[keep].tolist()))} '
                                 f'distinct depth(s) < {int(p["MIN_DEPTHS"])}')
         if verbose:
             print(f'  {tag}: {len(set(depth[keep].tolist()))} distinct depth(s) '
-                  f'< MIN_DEPTHS {p["MIN_DEPTHS"]} — session skipped')
+                  f'< MIN_DEPTHS {p["MIN_DEPTHS"]} - session skipped')
         return None
 
     idx_keep = np.where(keep)[0]
 
-    # ── THE SELECTION METHOD ───────────────────────────────────────────────
+    # -- THE SELECTION METHOD -----------------------------------------------
     method = str(p.get('IC_SELECT_METHOD', 'lee'))
     if method != 'lee':
         raise ValueError(f"IC_SELECT_METHOD must be 'lee', got {method!r}.")
@@ -754,7 +754,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         raise ValueError("HRSP_SEL_CRITERION must be 'hrsp' or 'ppc', got "
                          f"{p.get('HRSP_SEL_CRITERION')!r}.")
 
-    # ── IC decomposition ───────────────────────────────────────────────────
+    # -- IC decomposition ---------------------------------------------------
     # icasphere is the identity in this study's preprocessing (verified over 16
     # sessions), but it is passed anyway: omitting it is not safe in general.
     icaw = np.asarray(d['icaweights'], float)
@@ -773,9 +773,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     if icach is not None and icach.size and icach.max() >= seg_eeg.shape[1]:
         icach = icach - 1                        # 1-based export
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # A RECORDED SELECTION TO REPLAY (PIN_SELECTION)
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # Normally the component is selected from the data, below. With PIN_SELECTION
     # and an IC_PRESELECT table the recorded component is used instead. The
     # surrogate control needs this: it must hold the analysed component FIXED and
@@ -802,7 +802,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             notes['skip_reason'] = ('pinned selection: no component recorded '
                                     'for this session')
             if verbose:
-                print(f'  {tag}: {notes["skip_reason"]} — session skipped')
+                print(f'  {tag}: {notes["skip_reason"]} - session skipped')
             return None
         nIC_here = int(np.asarray(icaw).shape[0])
         if presel.min() < 0 or presel.max() >= nIC_here:
@@ -821,9 +821,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     nT = int(round((win[1] - win[0]) / 1000.0 * fs)) + 1
     times = win[0] + np.arange(nT) / fs * 1000.0
 
-    # ── per segment: peaks -> IC epochs -> CWT ──────────────────────────────
+    # -- per segment: peaks -> IC epochs -> CWT ------------------------------
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # PASS 1: peaks per segment, then the continuous CWT at the selection
     # frequencies only, concatenated across segments for one session-level
     # selection.
@@ -837,11 +837,11 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     #
     # Selection frequencies only, and complex64: the full 4-30 Hz stack over all
     # 61 ICs for a whole session is tens of GB.
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     f_sel = (freqs >= p['HRSP_SEL_BANDS'][0]) & (freqs <= p['HRSP_SEL_BANDS'][1])
     lo = int(round(win[0] / 1000.0 * fs)); hi = int(round(win[1] / 1000.0 * fs))
 
-    # ── ECG polarity: once per session ──────────────────────────────────────
+    # -- ECG polarity: once per session --------------------------------------
     # Decided on a concatenation of the retained segments so the vote sees a few
     # hundred beats rather than one window's worth. The resolver matches the
     # detector: under 'brainbeats' it is get_rr's own vote (resolve_polarity);
@@ -858,9 +858,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     if verbose:
         print(f'  {tag}: ECG polarity {"upright" if pol > 0 else "INVERTED"}')
 
-    # ── STAGE A: R-peaks per segment, in ABSOLUTE session samples ───────────
+    # -- STAGE A: R-peaks per segment, in ABSOLUTE session samples -----------
     seg_abs = np.asarray(d['seg_span'])            # [nSeg x 2] absolute spans
-    # ── THE ANALYSIS WINDOW ─────────────────────────────────────────────────
+    # -- THE ANALYSIS WINDOW -------------------------------------------------
     # Computed once, by `window_indices`, and the same [w0, w1) for every
     # segment: the window sits at a fixed offset from the segment's start,
     # because the start is the only end of a stored segment that reliably
@@ -927,7 +927,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                          dtype=np.int64)
     notes['n_beats_detected'] = int(raw_abs_all.size)
 
-    # ── STAGE B: RR cleaning, pooled per meditation block ───────────────────
+    # -- STAGE B: RR cleaning, pooled per meditation block -------------------
     # clean_rr must see block-level statistics, not per-segment ones. Step 1
     # derives min_rr/max_rr from the global median and MAD of the RR series,
     # and Step 4 from a ±7.5 s local median. Run per segment, those would come
@@ -988,7 +988,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                 # Say which block failed and keep its beats, so an unclean block
                 # can never masquerade as a clean one.
                 print(f'  {tag}: clean_rr failed on block [{b0},{b1}) ({exc}) '
-                      f'— beats KEPT UNCLEANED for this block')
+                      f'- beats KEPT UNCLEANED for this block')
                 kept |= m
         # Beats outside every meditation block are dropped: the R-peak scope is
         # the meditation blocks, so a depth segment lying outside them (the pre-
@@ -1000,7 +1000,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         n_out = int((~in_block).sum())
         if n_out and verbose:
             print(f'  {tag}: {n_out} beat(s) lie outside every meditation block '
-                  f'— dropped (the R-peak scope is the meditation blocks)')
+                  f'- dropped (the R-peak scope is the meditation blocks)')
         n_removed = int(in_block.sum() - (kept & in_block).sum())
         # split the surviving beats back out to their segments
         off, new_peaks = 0, []
@@ -1027,7 +1027,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     # the same reason.
     qa_abs_all = clean_abs_all.copy()
 
-    # ── GATE 3: MIN_IBI_MS, a beat-level filter on the clean train ─────────
+    # -- GATE 3: MIN_IBI_MS, a beat-level filter on the clean train ---------
     #     rri_ms = [NaN; diff(peaks)] / fs * 1000
     #     keep   = isnan(rri_ms) | rri_ms >= MIN_IBI_MS
     # This runs after clean_rr, on the whole session's train in absolute
@@ -1064,7 +1064,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     notes['n_beats_min_ibi_dropped'] = n_ibi_drop
     notes['n_beats_after_min_ibi'] = int(clean_abs_all.size)
 
-    # ── Per-session ECG quality, for the subject gate the caller applies ────
+    # -- Per-session ECG quality, for the subject gate the caller applies ----
     # Reported, not gated here: the ECG criterion is a subject criterion,
     # averaged over that subject's observations. Gating the session on it would
     # exclude a different set.
@@ -1082,7 +1082,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
 
     notes['n_beats_analysed'] = int(clean_abs_all.size)
 
-    # ── STAGE C: epochable beats, ECG-quality gate, CWT, selection ──────────
+    # -- STAGE C: epochable beats, ECG-quality gate, CWT, selection ----------
     seg_peaks, seg_ok, seg_nbeat = [], [], []
     sel_chunks, ei_rows, offset = [], [], 0
     # The surrogate shift is applied here, and only here. `SURROGATE_SHIFT` is a
@@ -1182,10 +1182,10 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             f'no segment carried a single epochable beat (MIN_BEATS_UNIT '
             f'{int(p.get("MIN_BEATS_UNIT", 1))})')
         if verbose:
-            print(f'  {tag}: no segment carried an epochable beat — skipped')
+            print(f'  {tag}: no segment carried an epochable beat - skipped')
         return None
 
-    # ── SELECTION: ONE OR MORE ICs PER SESSION ──────────────────────────────
+    # -- SELECTION: ONE OR MORE ICs PER SESSION ------------------------------
     # Per SESSION, over that session's pooled beats, never per segment and never
     # per depth level: selecting inside a depth level would make the depth
     # contrast partly a selection artefact.
@@ -1213,9 +1213,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     notes['ic_selected'] = [int(v) for v in sel_ics]
     notes['n_ic_selected'] = int(sel_ics.size)
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # PASS 2: measures, on the selected IC only (61x less memory than pass 1)
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     nF = len(freqs)
     hep = np.full((len(idx_keep), nT), np.nan)
     hrsp = np.full((len(idx_keep), nF, nT), np.nan)
@@ -1223,7 +1223,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
 
     unmix = icaw if icas is None else icaw @ icas
 
-    # ── The sign-corrected, unit-norm topographies ──────────────────────────
+    # -- The sign-corrected, unit-norm topographies --------------------------
     # topos = icawinv ./ vecnorm(icawinv), then each column negated if its
     # peak-absolute weight is negative. The combination below aligns the
     # selected ICs by the dot product of these columns, so the column norm and
@@ -1234,9 +1234,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     _neg = topos[_pk, np.arange(topos.shape[1])] < 0
     topos[:, _neg] *= -1.0
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # MULTI-IC COMBINATION
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # Under 'lee' at IC_SEL_THRESH=1 exactly one IC is selected, and every step
     # below reduces to using it: s = sign(ref . ref) = +1 and the average of one
     # element is itself. The general form serves selections of several ICs.
@@ -1279,7 +1279,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                 xs_k[j] = w_k @ (eeg if icach is None or icach.size == 0
                                  else eeg[icach])
 
-        # ── IC_UNIT_VAR_NORM, per IC ────────────────────────────────────────
+        # -- IC_UNIT_VAR_NORM, per IC ----------------------------------------
         # Each selected IC is divided by its SD over the analysed segments,
         # once per observation, so a subject's two sessions enter the pooled L1
         # on the same scale.
@@ -1305,11 +1305,11 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                 # decomposition, not something to divide by. Named, not silently
                 # left at 1.0.
                 notes.setdefault('ic_unit_var_norm_skipped', []).append(
-                    f'IC {ic_k}: SD over the analysed segments is 0 — constant '
+                    f'IC {ic_k}: SD over the analysed segments is 0 - constant '
                     'there; normalisation skipped')
                 if verbose:
                     print(f'  {tag}: IC_UNIT_VAR_NORM skipped for IC {ic_k} '
-                          f'— SD is 0')
+                          f'- SD is 0')
 
         # s = sign(ref . topo_k), with 0 taken as +1.
         s_k = float(np.sign(float(sign_ref @ topos[:, ic_k]))) or 1.0
@@ -1333,9 +1333,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     notes['ic_sign_flipped'] = bool(per_ic[0]['winv_flipped'])
     notes['ic_unit_var_norm_sd'] = float(per_ic[0]['sd'])
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # CFA TOPOGRAPHY DIAGNOSTIC
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # r2 between the analysed signal's scalp map and this session's empirical
     # cardiac field (the beat-averaged scalp topography at the R-peak).
     #
@@ -1379,7 +1379,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         else:
             notes['cfa_topo_r2'] = float('nan')
     except Exception as _e:
-        # Never let a diagnostic kill a session. nan means NOT MEASURED.
+        # Never let a diagnostic kill a session. nan means not measured.
         notes['cfa_topo_r2'] = float('nan')
         notes['cfa_topo_r2_error'] = str(_e)
     if verbose and np.isfinite(notes.get('cfa_topo_r2', np.nan)):
@@ -1387,9 +1387,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                  if notes['cfa_topo_r2'] >= 0.5 else '')
         print(f"  {tag}: CFA topography r2 = {notes['cfa_topo_r2']:.3f}{_flag}")
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # PER-SEGMENT SUFFICIENT STATISTICS: what the cell grain is built from
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # The cell grain needs no per-beat arrays, exactly. A cell's HEP, HRSP and
     # HEPC are the mean voltage, the mean power and (|sum z|^2 - N)/(N(N-1))
     # over the beats of the cell, all functions of a sum and a count. Depth is
@@ -1434,7 +1434,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         z = cb / (np.abs(cb) + EPS)
         hepc[j] = ppc_map(z)
 
-        # ── the sufficient statistics, with the SAME validity rule each
+        # -- the sufficient statistics, with the SAME validity rule each
         #    reducer uses: nanmean for HEP/HRSP, isfinite for the phasors.
         ok_e = np.isfinite(ep)
         sum_hep[j] = np.where(ok_e, ep, 0.0).sum(axis=0)
@@ -1454,7 +1454,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
     good = seg_ok
     # `ic` stays the top IC (scalar); `ic_all` is the full selection (1 element
     # under 'lee' at IC_SEL_THRESH=1).
-    # ── the cell-grain sufficient statistics, gated to the same segments ────
+    # -- the cell-grain sufficient statistics, gated to the same segments ----
     # Masked with `good` like every other returned array. A sums array that
     # kept the refused segments while `hep`/`depth`/`cond` dropped them would
     # misalign the cell grain against the segment grain.
@@ -1473,9 +1473,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
             hep=np.concatenate([a[m] for a, m in zip(pb_hep, sel_b) if m.any()]),
             pow=np.concatenate([a[m] for a, m in zip(pb_pow, sel_b) if m.any()]),
             seg=np.concatenate([k[m] for k, m in zip(keepb, sel_b) if m.any()]))
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # PER-SEGMENT COVARIATES (p['KEEP_SEGCOV'])
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # Computed here because the beats are here: `seg_peaks` is the cleaned,
     # IBI-filtered, epochable train in window coordinates, and re-deriving it
     # downstream would mean a second R-peak detection that could drift from
@@ -1489,7 +1489,7 @@ def session_measures(npz_path, p, verbose=True, notes=None):
         p, d, idx_keep, good, seg_peaks, seg_ecg, seg_eeg, seg_len, times, fs,
         w0, w1, lo, hi, _xs, notes)
 
-    # ── Opt-in: the exact beats each retained segment was epoched on ────────
+    # -- Opt-in: the exact beats each retained segment was epoched on --------
     # For analyses that must see the same heartbeats as this run on other
     # signals (for example sensor data projected to cortex). `seg` is the npz
     # segment index, `peaks` are in analysed-window coordinates (relative to
@@ -1527,9 +1527,9 @@ def session_measures(npz_path, p, verbose=True, notes=None):
                 times=times, freqs=freqs)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # L1: per-subject depth slopes
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _cells_of_session(s, measure, p):
     """Aggregate one session's segments into (session x depth) cells.
 
@@ -1623,9 +1623,9 @@ def _beats_of_session(s, measure, p):
     return v, dep, seg
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # COVARIATE MODELS: which design column(s) each one contributes
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Maps a model name to the segcov key(s) that supply its column(s).
 #
 # A covariate model carries no session dummies, by design: 'rr' is
@@ -1655,9 +1655,9 @@ COVARIATE_MODELS = {
     'reportmethod': ('reportmethod',),
     'cond':         ('cond',),
 }
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # MODERATION MODELS: does the depth slope itself change with the covariate?
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # A covariate model asks 'is the depth effect still there once X is adjusted
 # for' (confounding). A moderation model asks 'is the depth effect stronger at
 # some values of X than others'. They are not interchangeable and neither
@@ -1690,7 +1690,7 @@ INTERACTION_SUFFIX = 'Xdepth'
 INTERACTION_MODELS = {f'{c}{INTERACTION_SUFFIX}': c
                       for c in COVARIATE_MODELS if c != 'respPhase'}
 
-# ── SESSION + COVARIATE ────────────────────────────────────────────────────
+# -- SESSION + COVARIATE ----------------------------------------------------
 # `session+<cov>` fits [intercept, depth, sesD..., X]: the primary design plus
 # one covariate column. The plain covariate models above carry no session
 # dummies, so they are read against the unadj map; these are the like-for-like
@@ -1781,7 +1781,7 @@ def _covariate_columns(s, model, grain, p):
             raise KeyError(
                 f"{tag}: model {model!r} needs per-segment covariates but this "
                 "session dict has no `segcov`. session_measures writes it ONLY "
-                "when p['KEEP_SEGCOV'] is true — set it before building the "
+                "when p['KEEP_SEGCOV'] is true - set it before building the "
                 "cohort; it cannot be recovered from the segment averages.")
         absent = [k for k in keys if k not in sc]
         if absent:
@@ -1950,7 +1950,7 @@ def subject_slopes(sessions, measure, p, model='session', grain='segment',
     ses_id = np.concatenate(ses_id)
     nbeat = np.concatenate(nbeat)
     seg_id = np.concatenate(seg_id) if seg_id else None
-    # ── The covariate column(s), pooled over the subject's sessions ─────────
+    # -- The covariate column(s), pooled over the subject's sessions ---------
     # Centre, then zero the non-finite, in that order, over the pooled vector.
     # Zeroing before centring would drag the mean toward 0 by however many
     # units were missing, which is a different regressor.
@@ -1987,7 +1987,7 @@ def subject_slopes(sessions, measure, p, model='session', grain='segment',
             mu = np.nanmean(cov_cols, axis=0, keepdims=True)
             cov_cols = cov_cols - mu
             cov_cols[~np.isfinite(cov_cols)] = 0.0
-    # ── MODERATION: append the depth x covariate product ───────────────────
+    # -- MODERATION: append the depth x covariate product -------------------
     # target_col is the index of the coefficient cell_ols must return. The
     # design it builds is [intercept, depth, sesD..., covC...] and a moderation
     # model has no session dummies, so with k covariate columns the product
@@ -2021,7 +2021,7 @@ def subject_slopes(sessions, measure, p, model='session', grain='segment',
     if n_seg_total < p['minSeg'] or len(set(dep.tolist())) < 2:
         return None, None, 0
 
-    # ── The per-measure unit mask ───────────────────────────────────────────
+    # -- The per-measure unit mask -------------------------------------------
     if measure.upper() == 'HEPC':
         ok = nbeat >= int(p['MIN_BEATS_UNIT'])
     else:
@@ -2032,10 +2032,10 @@ def subject_slopes(sessions, measure, p, model='session', grain='segment',
     if int(ok.sum()) < 3 or len(set(dep[ok].tolist())) < 2:
         return None, None, 0
 
-    # ── SESSION BLOCKING DUMMIES (PRIMARY model only) ───────────────────────
+    # -- SESSION BLOCKING DUMMIES (PRIMARY model only) -----------------------
     # k-1 CENTRED indicator columns for k sessions; cell_ols expects them
     # already centred. With one session there is nothing to block on and sesD
-    # stays None, which makes 'session' and 'unadj' identical for that subject —
+    # stays None, which makes 'session' and 'unadj' identical for that subject -
     # correct, and worth knowing when reading a single-session subject's maps.
     sesD = None
     if model == 'session' or model in SESSION_COV_MODELS:
@@ -2044,7 +2044,7 @@ def subject_slopes(sessions, measure, p, model='session', grain='segment',
             D = np.stack([(ses_id == lv).astype(float) for lv in levels[1:]], axis=1)
             sesD = D - D.mean(axis=0, keepdims=True)
 
-    # ── ALDAY (2019) GLM BASELINE ───────────────────────────────────────────
+    # -- ALDAY (2019) GLM BASELINE -------------------------------------------
     # The baseline enters as a regressor column, never as a subtraction
     # (subtract / dB / percent assume the baseline instead of estimating it,
     # and the two ratio transforms are undefined on a signed HEP voltage).
@@ -2087,7 +2087,7 @@ def subject_slopes(sessions, measure, p, model='session', grain='segment',
         diag['n_bl_dead'] = len(bl_dead)
         diag['n_cov_dropped'] = int(n_cov_dropped)
 
-    # ── THE FIT ─────────────────────────────────────────────────────────────
+    # -- THE FIT -------------------------------------------------------------
     # A time x frequency map is fit one frequency at a time, each with only
     # that frequency's baseline column: cell_ols(Y[:, f, :], dep, sesD,
     # [covC, bl[:, f]]). Handing the solver all nFreq baseline columns at once
@@ -2096,7 +2096,7 @@ def subject_slopes(sessions, measure, p, model='session', grain='segment',
     # 2 + 27 baseline columns gives nUnits < nP and an all-NaN HRSP map).
     #
     # HEP is 2-D so it takes one baseline column and one fit; HEPC takes none.
-    # ── THE TLIMS TRIM: after the baseline columns, before the fit ─────────
+    # -- THE TLIMS TRIM: after the baseline columns, before the fit ---------
     # covC above was built from the full epoch. Trimming first would shorten
     # BASELINE_WIN [-150 -50] to [-100 -50] and drop its cells into the tested
     # map.

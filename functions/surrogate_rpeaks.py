@@ -49,7 +49,7 @@ thing selection optimised for is present, and the answer is rigged; heart_surrog
 such a run. (Under criterion='ppc' the norm mode has no effect, so a ppc run is not
 sham-selected whatever the folder tag says; see lee_selection.)
 
-CACHE TRAP
+Cached transforms
 Any CWT computed for surrogate peaks must come from a continuous transform held in memory (or an
 explicitly cache-disabled call), never from an on-disk epoched CWT cache. Such a cache is keyed
 by subject/session/IC/epoch-window/freqs/width and not by R-peak positions, and it stores the
@@ -85,7 +85,7 @@ __all__ = [
     'DEFAULT_SEED', 'MAX_ATTEMPTS', 'SURR_SHIFT_MS', 'SURR_RETRIES',
 ]
 
-# ── Constants ────────────────────────────────────────────────────────────────
+# -- Constants ----------------------------------------------------------------
 DEFAULT_SEED = 0        # any fixed integer would do; 0 means a caller who forgets to
                         # seed still gets a reproducible surrogate.
 MAX_ATTEMPTS = 100      # draws per call before giving up
@@ -113,9 +113,9 @@ class SurrogateResult(NamedTuple):
     shift: Optional[int]          # accepted shift in samples (signed), or None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Helpers
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def _mround(x):
     """MATLAB's round(): half away from zero.
 
@@ -251,9 +251,9 @@ def min_abs_shift(rp, shift_ms: Sequence[float], fs: float) -> int:
     return int(min(m, int(np.floor(0.5 * max_avail))))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # The surrogate
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def make_surrogate_rpeaks(rp,
                           n_pts: int,
                           shift_ms: Sequence[float] = SURR_SHIFT_MS,
@@ -298,7 +298,7 @@ def make_surrogate_rpeaks(rp,
     any beat's epoch out of bounds. Up to `max_attempts` draws are tried before
     giving up; failure returns ok=False and peaks=None, never a fallback train.
     """
-    # ── Validation: a malformed input raises instead of producing a wrong surrogate.
+    # -- Validation: a malformed input raises instead of producing a wrong surrogate.
     if not np.isfinite(fs) or fs <= 0:
         raise ValueError(f'fs must be positive and finite, got {fs!r}')
     if int(n_pts) <= 0:
@@ -316,7 +316,7 @@ def make_surrogate_rpeaks(rp,
         # Not defaultable (see the `guard` entry in the docstring). Checked before the
         # empty-train short-circuit below, so a missing guard is not masked by an empty train.
         raise ValueError(
-            'guard is REQUIRED — it is the headroom '
+            'guard is REQUIRED - it is the headroom '
             'that keeps every shifted epoch in bounds, and a guard of 0 '
             'returns ok=True for out-of-bounds surrogates. '
             'Build it with guard_from_windows(hrsp_win, hep_win, fs); the '

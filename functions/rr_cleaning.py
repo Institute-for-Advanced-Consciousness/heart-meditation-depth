@@ -53,7 +53,7 @@ OTHER BEHAVIOUR
   * `peaks_clean` is returned as float64 because Step 5 can emit NaN peaks (interpolation without
     an ECG). Cast to int64 after checking isfinite().
 
-PORTED WITH A DELIBERATELY TIGHTER CONTRACT
+Ported with stricter input checks
   Two calls that BrainBeats' clean_rr accepts are rejected here:
   * `fs` is required (third positional argument) and must be finite and > 0. In BrainBeats fs is
     optional and only places synthetic peaks, never a threshold. As a consequence the
@@ -441,7 +441,7 @@ def clean_rr(rr, peaks, fs, *,
         On empty input, a length mismatch between rr/peaks/rr_t or between sig_t/ecg_signal, or
         a non-positive or non-finite fs; and from Step 5 when a flagged gap has a non-finite or
         non-positive local median, so the number of beats to insert is undefined. See "PORTED
-        WITH A DELIBERATELY TIGHTER CONTRACT" in the module docstring for the two checks
+        with stricter input checks" in the module docstring for the two checks
         BrainBeats does not make.
     """
     log = (lambda s: print(s)) if verbose else (lambda s: None)
@@ -461,7 +461,7 @@ def clean_rr(rr, peaks, fs, *,
     rr = np.asarray(rr, dtype=float).ravel()
     npk = np.asarray(peaks, dtype=float).ravel()
     if rr.size == 0:
-        raise ValueError('clean_rr: rr is empty. Nothing to clean — this is a '
+        raise ValueError('clean_rr: rr is empty. Nothing to clean - this is a '
                          'caller bug (an empty block should be skipped upstream), '
                          'not cleaned into an empty null.')
     if npk.size != rr.size:
@@ -549,7 +549,7 @@ def clean_rr(rr, peaks, fs, *,
             # amplitude-screened series.
             warnings.warn(
                 f'clean_rr: len(peak_amp)={amp.size} != len(rr)={n_orig}. MATLAB '
-                'silently skips the entire amplitude step here — reproduced, but '
+                'silently skips the entire amplitude step here - reproduced, but '
                 'this means Step 2 DID NOT RUN. Fix the caller; do not read the '
                 'output as an amplitude-screened series.', RuntimeWarning, stacklevel=2)
             amp_outliers = np.zeros(n_orig, dtype=bool)
@@ -605,7 +605,7 @@ def clean_rr(rr, peaks, fs, *,
         # Warn and return, with a named reason rather than an empty array that a caller could
         # mistake for "nothing to do".
         info['reason'] = 'all_intervals_removed'
-        warnings.warn(f'clean_rr: all {n_orig} intervals removed — check data '
+        warnings.warn(f'clean_rr: all {n_orig} intervals removed - check data '
                       'quality (info["reason"]="all_intervals_removed").',
                       RuntimeWarning, stacklevel=2)
         return nn, npk, idx_bad, info

@@ -29,9 +29,9 @@ PREPROCESSING_SUMMARY = os.environ.get(
     'HMD_PREPROCESSING_SUMMARY', os.path.join(ROOT, 'data', 'preprocessed', 'sInfo.mat'))
 FIGURES_DIR = os.path.join(RESULTS_DIR, 'figures')
 
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Analysis 1: scalp (HEP, HRSP, HRPC at all 64 electrodes, no component selection)
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # The segment is the unit of analysis; recording session is in the participant-level model.
 SCALP = dict(
     IC_SELECT_METHOD='scalp',       # names the arm in the folder tag; nothing is selected
@@ -65,9 +65,9 @@ SCALP_TFCE = dict(
                   else 1000) for name in SCALP_SETTINGS},
 )
 
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Analysis 2: component domain (HEP, HRSP, HRPC on one component per recording)
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # The primary setting: 60 s windows ending 3 s before the depth report, silent blocks,
 # baseline correction by regression on the -150 to -50 ms pre-R-peak window, recording
 # session in the participant-level model, the heartbeat as the unit of analysis.
@@ -155,9 +155,9 @@ LOSO = dict(grain='perbeat', model='session', measure='hrsp', schemes=('ivw_own'
 SOURCES = dict(cache_dir=os.path.join(RESULTS_DIR, 'head_models'))
 ONGOING = dict(band='beta', n_perm=10000)
 
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Analysis 3: frontal-midline theta as a function of depth
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Two measures per segment: theta power averaged over ten frontocentral electrodes, and a
 # GED-filtered component (Zuure et al., 2020). Values are z-scored within recording.
 FMT_DEPTH = dict(
@@ -184,9 +184,9 @@ FMT_ROOT = os.path.join(RESULTS_DIR, 'fmt')
 # the pooled blocks.
 FMT_ASSOCIATIONS = dict(setting='pooled', measure='GED', n_boot=10000)
 
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Analysis 4: contrasts between recording periods
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 PERIODS = ['baseline', 'pre-meditation', 'post-meditation', 'active-oddball']
 PERIOD_ROOT = os.path.join(RESULTS_DIR, 'periods')
 
@@ -238,16 +238,16 @@ PERIOD_FMT = dict(
     SCHEMES=['unweighted', 'precision_nwin'],
 )
 
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Autonomic variables as a function of depth
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Mean inter-beat interval, RMSSD, respiratory rate and respiration amplitude on the 60 s
 # windows of the silent blocks (both pinned inside functions/autonomic_depth.py).
 AUTONOMIC_DIR = os.path.join(RESULTS_DIR, 'autonomic')
 
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Self-report and demographic associations of the primary effect
-# ════════════════════════════════════════════════════════════════════════════
+# ============================================================================
 # Predictor: each participant's depth slope averaged over the significant region of the
 # primary test (largest TFCE component), z-scored. Skipped correlations with 10,000 bootstrap
 # resamples for the 34 self-report measures; Spearman on all participants for the six

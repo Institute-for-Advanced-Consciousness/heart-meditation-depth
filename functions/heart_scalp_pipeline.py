@@ -76,9 +76,9 @@ from l2_run import CFA_WINDOW_MS   # noqa: E402
 MAX_NULL_CHUNK_GB = 0.5
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # PARAMETERS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 DEFAULT_SCALP_PARAMS = dict(DEFAULT_PARAMS)
 # What the run is called. It selects nothing (every channel is analysed), but the tag
 # uses the same folder machinery as the IC methods, so it takes a value there.
@@ -158,9 +158,9 @@ def _scalp_session_record(sid, ses, ms, notes):
     return rec
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # PER-SESSION PROCESSING: every scalp channel, not one selected IC
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     """One session -> every session gate and the channel-invariant beat train.
 
@@ -192,14 +192,14 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     if nC != len(ch_names):
         raise ValueError(
             f'{tag}: seg_eeg has {nC} channels but ch_names has '
-            f'{len(ch_names)} — cannot name the scalp axes. Refuse rather than '
+            f'{len(ch_names)} - cannot name the scalp axes. Refuse rather than '
             f'analyse channels anonymously.')
     # FCz/AFz were the recording reference and are never restored; every stored
     # axis is a scalp electrode, so no per-session channel removal is needed.
     notes['n_chan_scalp'] = nC
     notes['n_seg_stored'] = int(len(depth))
 
-    # ── GATE 0: MIN_SESSION_MIN, on the lower-bound duration proxy ──────────
+    # -- GATE 0: MIN_SESSION_MIN, on the lower-bound duration proxy ----------
     # The same proxy and the same order as heart_depth_run._minimal_session_npz:
     # before any other gate.
     from session_length import session_duration_lowerbound_min
@@ -210,10 +210,10 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
         notes['skip_reason'] = (f'MIN_SESSION_MIN: duration lower bound '
                                 f'{dur:.1f} min < {float(p["MIN_SESSION_MIN"]):g} min')
         if verbose:
-            print(f'  {tag}: {notes["skip_reason"]} — session skipped')
+            print(f'  {tag}: {notes["skip_reason"]} - session skipped')
         return None
 
-    # ── GATE 1: condition ────────────────────────────────────────────────────
+    # -- GATE 1: condition ----------------------------------------------------
     # (0, 1) under INCLUDE_SAPO, not every condition. The pre-/post-meditation
     # reports (cond 2, 3) lie outside every meditation block, so their beats never
     # reach a map, but they would count towards MIN_DEPTHS and their detected beats
@@ -225,10 +225,10 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     if keep.sum() == 0:
         notes['skip_reason'] = 'no segment in the analysed condition/depth set'
         if verbose:
-            print(f'  {tag}: no segments in DEPTH_LEVELS — skipped')
+            print(f'  {tag}: no segments in DEPTH_LEVELS - skipped')
         return None
 
-    # ── GATE 1b: the requested window is actually stored for this segment ────
+    # -- GATE 1b: the requested window is actually stored for this segment ----
     w0, w1, w_ok = window_indices(seg_len, fs, p['EPOCH_DUR'], p['PRE_END'],
                                   p['EXTRACT_EPOCH_DUR'], p['EXTRACT_PRE_END'])
     notes['n_seg_window_refused'] = int((keep & ~w_ok).sum())
@@ -240,7 +240,7 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
         raise ValueError(f"WAVELET_ON must be 'window' or 'segment', got {_won!r}")
     _cwt_seg = _won == 'segment'
 
-    # ── GATE 1c: resolve overlaps at the ANALYSIS duration ──────────────────
+    # -- GATE 1c: resolve overlaps at the ANALYSIS duration ------------------
     ov_key = 'overlap_resolved' in d.files
     already = bool(d['overlap_resolved']) if ov_key else True
     notes['overlap_resolved_at_extraction'] = already
@@ -261,16 +261,16 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     if keep.sum() == 0:
         notes['skip_reason'] = 'no segment holds the window'
         if verbose:
-            print(f'  {tag}: no segment holds the window — skipped')
+            print(f'  {tag}: no segment holds the window - skipped')
         return None
 
-    # ── GATE 2: MIN_DEPTHS, per session ──────────────────────────────────────
+    # -- GATE 2: MIN_DEPTHS, per session --------------------------------------
     if len(set(depth[keep].tolist())) < p['MIN_DEPTHS']:
         notes['skip_reason'] = (
             f'MIN_DEPTHS: {len(set(depth[keep].tolist()))} distinct depth(s) '
             f'< {int(p["MIN_DEPTHS"])}')
         if verbose:
-            print(f'  {tag}: {notes["skip_reason"]} — session skipped')
+            print(f'  {tag}: {notes["skip_reason"]} - session skipped')
         return None
 
     idx_keep = np.where(keep)[0]
@@ -279,7 +279,7 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     nT = int(round((win[1] - win[0]) / 1000.0 * fs)) + 1
     times = win[0] + np.arange(nT) / fs * 1000.0
 
-    # ── THE BEAT TRAIN: once per session, on the ECG (channel-invariant) ────
+    # -- THE BEAT TRAIN: once per session, on the ECG (channel-invariant) ----
 
     lo = int(round(win[0] / 1000.0 * fs)); hi = int(round(win[1] / 1000.0 * fs))
     seg_abs = np.asarray(d['seg_span'])
@@ -325,7 +325,7 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
                          dtype=np.int64)
     notes['n_beats_detected'] = int(raw_abs_all.size)
 
-    # ── RR CLEANING, POOLED PER MEDITATION BLOCK (as on the IC route) ──────
+    # -- RR CLEANING, POOLED PER MEDITATION BLOCK (as on the IC route) ------
     n_removed = 0
     if p['DO_CLEAN_RR']:
         blocks = np.atleast_2d(np.asarray(d['block_spans'])).astype(np.int64)
@@ -357,7 +357,7 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
                 kept |= np.isin(all_abs, keep_abs) | (all_abs == pk_b[0])
             except Exception as exc:
                 print(f'  {tag}: clean_rr failed on block [{b0},{b1}) ({exc}) '
-                      f'— beats KEPT UNCLEANED for this block')
+                      f'- beats KEPT UNCLEANED for this block')
                 kept |= m
         in_block = np.zeros(all_abs.size, bool)
         for b0, b1 in blocks:
@@ -365,7 +365,7 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
         n_out = int((~in_block).sum())
         if n_out and verbose:
             print(f'  {tag}: {n_out} beat(s) outside every meditation block '
-                  f'— dropped (outside the R-peak scope)')
+                  f'- dropped (outside the R-peak scope)')
         n_removed = int(in_block.sum() - (kept & in_block).sum())
         off, new_peaks = 0, []
         for pk_abs in seg_peaks_abs:
@@ -387,7 +387,7 @@ def scalp_session_beats(npz_path, p, verbose=True, notes=None):
     # ~0 by construction.
     qa_abs_all = clean_abs_all.copy()
 
-    # ── MIN_IBI_MS, beat-level, on the clean train (as on the IC route) ─────
+    # -- MIN_IBI_MS, beat-level, on the clean train (as on the IC route) -----
     n_ibi_drop = 0
     if float(p.get('MIN_IBI_MS', 0)) > 0 and clean_abs_all.size:
         order = np.argsort(clean_abs_all, kind='stable')
@@ -463,7 +463,7 @@ def session_measures_scalp(npz_path, p, verbose=True, notes=None):
     times, freqs, nT = ctx['times'], ctx['freqs'], ctx['nT']
     seg_len, _cwt_seg = ctx['seg_len'], ctx['cwt_seg']
 
-    # ── PER SEGMENT: epochable beats, then one full-channel CWT per segment ──
+    # -- PER SEGMENT: epochable beats, then one full-channel CWT per segment --
     nF = len(freqs)
     nS = len(idx_keep)
     hep = np.full((nS, nC, nT), np.nan, dtype=np.float32)
@@ -514,7 +514,7 @@ def session_measures_scalp(npz_path, p, verbose=True, notes=None):
             f'no segment carried a single epochable beat (MIN_BEATS_UNIT '
             f'{int(p.get("MIN_BEATS_UNIT", 1))})')
         if verbose:
-            print(f'  {tag}: no segment carried an epochable beat — skipped')
+            print(f'  {tag}: no segment carried an epochable beat - skipped')
         return None
 
     return dict(subject=sid, session=ses, fs=fs, ch_names=ch_names,
@@ -524,9 +524,9 @@ def session_measures_scalp(npz_path, p, verbose=True, notes=None):
                 times=times, freqs=freqs)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # L1: per-subject, per-channel depth slopes
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def subject_slopes_scalp(sessions, measure, p, model='session',
                          baseline_measure=None):
     """Depth slope map for one subject, at every channel, pooling sessions.
@@ -645,7 +645,7 @@ def subject_slopes_scalp(sessions, measure, p, model='session',
     dep_c = dep - np.nanmean(dep)
     L1 = p['L1_METHOD']
 
-    # ── THE FIT, ONE cell_ols CALL PER (CHANNEL, FREQ) ──────────────────────
+    # -- THE FIT, ONE cell_ols CALL PER (CHANNEL, FREQ) ----------------------
     # The baseline enters the design as one column per fit: the (channel, freq) slice
     # is fit against [1, depth, sesD, that slice's baseline], never against every
     # slice's baseline at once, which would cost one df per (channel, freq) instead of
@@ -695,9 +695,9 @@ def subject_slopes_scalp(sessions, measure, p, model='session',
             dmean, dn, depth_levels)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # L2: 3-D spatio-temporal cluster permutation with channel adjacency
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def build_channel_adjacency(ch_names):
     """MNE channel adjacency on the standard 10-20/10-10 montage (Delaunay
     triangulation of the 2-D scalp projection).
@@ -847,13 +847,13 @@ def cluster_perm_3d(X, chan_adj, n_perm=1000, seed=SEED, alpha=0.05,
     Xmap = X3.reshape(nC, nF, nT, nSub)
 
     if not np.isfinite(Xmap).all():
-        raise ValueError('cluster_perm_3d got non-finite cells — apply '
+        raise ValueError('cluster_perm_3d got non-finite cells - apply '
                          'listwise deletion to X before calling.')
     rng = np.random.default_rng(seed)
     flips = rng.choice(np.array([-1.0, 1.0]), size=(nSub, n_perm))
     flips[:, 0] = 1.0                          # identity == observed, never in the null
 
-    # ── CHUNK THE NULL ACROSS CELLS ──────────────────────────────────────────
+    # -- CHUNK THE NULL ACROSS CELLS ------------------------------------------
     # Each chunk reshapes to [nChunk x nSub], runs the one-matmul t and stores its own
     # [nChunk x nPerm] block of the null in float32. The float32 copy halves the memory
     # of the big array and costs nothing the cluster test can resolve (a cell is
@@ -880,7 +880,7 @@ def cluster_perm_3d(X, chan_adj, n_perm=1000, seed=SEED, alpha=0.05,
               f'(chunked over {int(np.ceil(n_cell / cells_per_chunk))} cell '
               f'blocks of {cells_per_chunk})')
 
-    # ── OBSERVED CLUSTERS + MAX-MASS NULL ────────────────────────────────────
+    # -- OBSERVED CLUSTERS + MAX-MASS NULL ------------------------------------
     # The null holds one distribution of the max absolute cluster mass, not two
     # one-sided ones, and column 0 (the identity) is excluded from it, so the
     # smallest attainable p is 1/n_perm. As in l2_heart.cluster_perm_weighted.
@@ -944,9 +944,9 @@ def cluster_perm_3d(X, chan_adj, n_perm=1000, seed=SEED, alpha=0.05,
     return t_obs, cft, out, nSub
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE TIDY TABLE: channels on the map axis, one row per cluster
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 SCALP_FIELDS = (
     'Measure', 'Model', 'Status', 'N_subjects', 'N_dropped_nonfinite',
     'CFT', 'N_supra', 'N_clusters_total', 'Best_p',
@@ -979,9 +979,9 @@ def write_scalp_table(rows, path):
     return path
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # SUBJECT STACKING + THE COHORT RUNNER
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 MIN_SUB_L2 = 5           # fewest subjects for a cluster test (FMT's value)
 
 
@@ -1085,7 +1085,7 @@ def _scalp_cluster_row(meas, model, cl, rank, t_obs, times, freqs, ch_names,
         Survived=bool(cl['p'] < alpha),
         HedgesG=round(float(cl['g']), 3),
         CFA_flag=_cfa_overlap_ms(t0, t1),
-        Note=('touches the QRS window — cardiac field until a post-QRS '
+        Note=('touches the QRS window - cardiac field until a post-QRS '
               'refit survives' if _cfa_overlap_ms(t0, t1) else ''),
     )
     return r
@@ -1203,9 +1203,9 @@ def apply_scalp_subject_gates(session_records, subj, p, verbose=True):
     return subject_records
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE COHORT RUNNER: sessions -> per-subject per-channel slopes -> L2
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def run_scalp(data_dir, results_root, p=None, limit=None, verbose=True):
     """The full mass-univariate scalp run.
 
@@ -1224,8 +1224,8 @@ def run_scalp(data_dir, results_root, p=None, limit=None, verbose=True):
     if p is None:
         p = dict(DEFAULT_SCALP_PARAMS)
 
-    # ── SESSION LIST (the same discovery the IC route uses, without its
-    #    IC-selection pre-pass: this analysis selects nothing) ──────────────
+    # -- SESSION LIST (the same discovery the IC route uses, without its
+    #    IC-selection pre-pass: this analysis selects nothing) --------------
     all_sessions = list_sessions(data_dir)
     if not all_sessions:
         raise FileNotFoundError(
@@ -1236,9 +1236,9 @@ def run_scalp(data_dir, results_root, p=None, limit=None, verbose=True):
         all_sessions = [s for s in all_sessions if s[0] in set(keep_sids)]
         if verbose:
             print(f'  --limit {limit}: {len(keep_sids)} subject(s), '
-                  f'{len(all_sessions)} session(s) — SMOKE TEST, not a cohort.')
+                  f'{len(all_sessions)} session(s) - SMOKE TEST, not a cohort.')
 
-    # ── L1: per-session measures, then per-subject per-channel slopes ───────
+    # -- L1: per-session measures, then per-subject per-channel slopes -------
     subj = {}                                   # sid -> {'sessions': [..], 'l1': {}}
     session_records = []                        # one row per session, kept or not
     n_jobs = max(1, int(p.get('N_JOBS', 1) or 1))
@@ -1262,12 +1262,12 @@ def run_scalp(data_dir, results_root, p=None, limit=None, verbose=True):
                 session_records.append(_scalp_session_record(sid, ses, ms, notes))
                 if ms is None:
                     if verbose:
-                        print('  DROPPED — %s' % notes.get('skip_reason', '?'))
+                        print('  DROPPED - %s' % notes.get('skip_reason', '?'))
                     continue
                 subj.setdefault(sid, {'sessions': [], 'l1': {}})
                 subj[sid]['sessions'].append(ms)
                 if verbose:
-                    print('  KEPT — %d segment(s), %d channels'
+                    print('  KEPT - %d segment(s), %d channels'
                           % (len(ms['depth']), ms['hep'].shape[1]))
     else:
         for k, (sid, ses, npz_path) in enumerate(all_sessions, 1):
@@ -1278,15 +1278,15 @@ def run_scalp(data_dir, results_root, p=None, limit=None, verbose=True):
             session_records.append(_scalp_session_record(sid, ses, ms, notes))
             if ms is None:
                 if verbose:
-                    print(f'  DROPPED — {notes.get("skip_reason", "?")}')
+                    print(f'  DROPPED - {notes.get("skip_reason", "?")}')
                 continue
             subj.setdefault(sid, {'sessions': [], 'l1': {}})
             subj[sid]['sessions'].append(ms)
             if verbose:
-                print(f'  KEPT — {len(ms["depth"])} segment(s), '
+                print(f'  KEPT - {len(ms["depth"])} segment(s), '
                       f'{ms["hep"].shape[1]} channels')
 
-    # ── SUBJECT GATES (apply_scalp_subject_gates) ───────────────────────────
+    # -- SUBJECT GATES (apply_scalp_subject_gates) ---------------------------
     subject_records = apply_scalp_subject_gates(session_records, subj, p,
                                                 verbose=verbose)
 
@@ -1321,11 +1321,11 @@ def run_scalp(data_dir, results_root, p=None, limit=None, verbose=True):
         csv_path = os.path.join(main_dir, 'l2_scalp_summary.csv')
         write_scalp_table([], csv_path)
         if verbose:
-            print('  no subjects survived the cohort gates — empty CSV written')
+            print('  no subjects survived the cohort gates - empty CSV written')
         return dict(main=main_dir, npz=None, csv=csv_path,
                     detections={}, l2_errors={})
 
-    # ── WRITE run_results.npz FIRST, before any L2 ──────────────────────────
+    # -- WRITE run_results.npz FIRST, before any L2 --------------------------
     ch_names = _scalp_ch_names(subjects)
     freqs = subjects[0]['sessions'][0]['freqs']
     # The trimmed axis, because the maps are trimmed: subject_slopes_scalp applies
@@ -1400,7 +1400,7 @@ def run_scalp(data_dir, results_root, p=None, limit=None, verbose=True):
     if verbose:
         print(f'  wrote {npz_out}')
 
-    # ── L2 ──────────────────────────────────────────────────────────────────
+    # -- L2 ------------------------------------------------------------------
     rows, detections = run_scalp_l2(subjects, times_h, times, freqs,
                                     p['nPerm'], alpha=p['ALPHA'],
                                     verbose=verbose)

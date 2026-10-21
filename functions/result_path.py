@@ -114,9 +114,9 @@ def _template_token(tmpl, elecs):
     return f"{len(tmpl)}x{_hash_labels(tmpl)}"
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # TAG-SUPPRESSED DEFAULTS: values that get no folder token at their default
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # These are emitted only when they differ from the values below, so the settled case
 # gets a short name and the folders still separate the moment one of them moves. This
 # is not the same as dropping them: a knob that varies but is missing from the folder
@@ -251,9 +251,9 @@ def heart_method_tag(p):
     raise ValueError(f"IC_SELECT_METHOD must be 'lee', got {method!r}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE SHORT RUN FOLDER: one level, the axes a reader needs
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # The folder name carries selection, number of components, window length,
 # baseline correction and condition. Every other parameter is recorded in
 # README.txt and run_summary.txt, and `assert_no_param_collision` refuses to
@@ -323,7 +323,7 @@ def run_label_token(p):
     return tok[:40]
 
 
-# ── the collision guard ─────────────────────────────────────────────────────
+# -- the collision guard -----------------------------------------------------
 # Parameters that legitimately differ between two runs sharing a folder, i.e.
 # the ones that do not change the answer. Everything else, if it moves, means
 # this is a different analysis wearing the same name.
@@ -398,7 +398,7 @@ def assert_no_param_collision(run_root, p):
             for k in diff[:12])
         more = '' if len(diff) <= 12 else f'\n    ... and {len(diff) - 12} more'
         raise ValueError(
-            f'RUN FOLDER COLLISION — this folder already holds a DIFFERENT '
+            f'RUN FOLDER COLLISION - this folder already holds a DIFFERENT '
             f'analysis:\n  {run_root}\n'
             f'  {len(diff)} parameter(s) differ from the run that created it:\n'
             f'{lines}{more}\n'
@@ -406,7 +406,7 @@ def assert_no_param_collision(run_root, p):
             f'baseline / condition, so these differences do not change it and '
             f'the new run would OVERWRITE the old one.\n'
             f"  FIX: set p['RUN_LABEL'] to something naming what you changed "
-            f"(e.g. p['RUN_LABEL'] = '{diff[0].lower()}') — it is appended to "
+            f"(e.g. p['RUN_LABEL'] = '{diff[0].lower()}') - it is appended to "
             f'the folder name, so this run gets its own directory and the '
             f'earlier one is left intact. That is how a sweep over a parameter '
             f'the name does not carry is meant to be run.\n'
@@ -451,7 +451,7 @@ def write_readme(run_root, arm, description, params):
     be read back into labels. This file is where a reader recovers what the run used.
     """
     os.makedirs(run_root, exist_ok=True)
-    lines = [f'{arm} — {description}', '=' * 72, '',
+    lines = [f'{arm} - {description}', '=' * 72, '',
              'Sections (present only if that step ran):',
              '  main/  covariates/  surrogate_control/  source_localization/  '
              'outcomes_demographics/', '',

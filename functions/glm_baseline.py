@@ -92,7 +92,7 @@ __all__ = [
     'glm_baseline_regressors', 'dead_columns',
 ]
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# -- Constants -----------------------------------------------------------------
 BASELINE_WIN_DEFAULT = (-150.0, -50.0)
 # -150..-50 ms, not Park et al. 2018's [-300 -100]: the window sits close to the
 # R-peak so that it does not reach back into the previous beat. It is a pipeline
@@ -112,7 +112,7 @@ class GlmBaselineError(ValueError):
     """
 
 
-# ── Small NaN-aware helpers ───────────────────────────────────────────────────
+# -- Small NaN-aware helpers ---------------------------------------------------
 def _finite_mean(A, axis):
     """Mean over `axis` ignoring non-finite entries; all-non-finite -> NaN.
 
@@ -134,7 +134,7 @@ def _as_2d(A):
     return A[:, None] if A.ndim == 1 else A
 
 
-# ── 1. the time mask ──────────────────────────────────────────────────────────
+# -- 1. the time mask ----------------------------------------------------------
 def baseline_mask(times_ms, win=BASELINE_WIN_DEFAULT):
     """Boolean mask selecting the baseline window on a full-epoch time axis.
 
@@ -165,7 +165,7 @@ def baseline_mask(times_ms, win=BASELINE_WIN_DEFAULT):
     return m
 
 
-# ── 2. per-beat baseline ──────────────────────────────────────────────────────
+# -- 2. per-beat baseline ------------------------------------------------------
 def beat_baseline(Y, bl_mask, measure='HEP', *, real_is_power=False):
     """Per-beat baseline value(s): the mean of the measure over the baseline window.
 
@@ -244,7 +244,7 @@ def beat_baseline(Y, bl_mask, measure='HEP', *, real_is_power=False):
     return np.mean(win, axis=2)          # [nBeats x nFreq], NaN-propagating
 
 
-# ── 3./5. centring ────────────────────────────────────────────────────────────
+# -- 3./5. centring ------------------------------------------------------------
 def centre_columns(A):
     """Mean-centre each column (ignoring non-finite), then zero non-finite entries.
 
@@ -264,7 +264,7 @@ def centre_columns(A):
     return out
 
 
-# ── 4. beat -> unit aggregation ───────────────────────────────────────────────
+# -- 4. beat -> unit aggregation -----------------------------------------------
 def aggregate_units(bl_beats, units):
     """Average a per-beat baseline into per-unit (cell or segment) means.
 
@@ -297,7 +297,7 @@ def aggregate_units(bl_beats, units):
     return out, (labels.ravel() if labels.shape[1] == 1 else labels)
 
 
-# ── the headline function ─────────────────────────────────────────────────────
+# -- the headline function -----------------------------------------------------
 def glm_baseline_regressors(Y, bl_mask, measure='HEP', *, units=None, keep=None,
                             strict=True, return_labels=False, real_is_power=False):
     """Build the Alday baseline regressor(s) to append to the L1 design matrix.

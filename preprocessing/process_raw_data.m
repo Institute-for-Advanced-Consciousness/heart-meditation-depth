@@ -92,14 +92,14 @@ for iF = 1:numel(files)
     info = struct('subject', subject, 'session', iSession, 'status', 'running');
     fprintf('\n%s session %d\n', subject, iSession);
 
-    % ── 1. LOAD ───────────────────────────────────────────────────────
+    % -- 1. LOAD -------------------------------------------------------
     EEG_all = pop_loadset('filename', files(iF).name, 'filepath', files(iF).folder);
     labels  = {EEG_all.chanlocs.labels};
     EEG_all = pop_select(EEG_all, 'channel', [labels(1:64) {'ECG' 'RESP'}]);
     EEG_all.event(strcmpi({EEG_all.event.type}, 'boundary')) = [];
     EEG_all = eeg_checkset(EEG_all, 'eventconsistency');
 
-    % ── 2. MINIMAL PREPROCESSING ──────────────────────────────────────
+    % -- 2. MINIMAL PREPROCESSING --------------------------------------
     EEG_all = pop_resample(EEG_all, dwnsamp);
 
     % physiological channels are set aside before the EEG is filtered
@@ -121,11 +121,11 @@ for iF = 1:numel(files)
     EEG_all.nbchan = size(EEG_all.data, 1);
     EEG_all = eeg_checkset(EEG_all);
 
-    % ── 3a. Events ────────────────────────────────────────────────────
+    % -- 3a. Events ----------------------------------------------------
     EEG = clean_depth_reports(EEG_all);
     info.dur_min   = round(EEG.pnts / EEG.srate / 60, 2);
 
-    % ── 3b. Separate ECG/RESP from the EEG ────────────────────────────
+    % -- 3b. Separate ECG/RESP from the EEG ----------------------------
     ECG  = pop_select(EEG, 'channel', {'ECG'});
     RESP = pop_select(EEG, 'channel', {'RESP'});
     EEG  = pop_select(EEG, 'nochannel', {'ECG' 'RESP'});
@@ -135,26 +135,26 @@ for iF = 1:numel(files)
     % 1 Hz high-pass copy for ICA
     EEG_ica = pop_eegfiltnew(EEG, 'locutoff', hp_ica);
 
-    % ── 3c. Bad channels ──────────────────────────────────────────────
+    % -- 3c. Bad channels ----------------------------------------------
     [EEG_ica, badChan] = clean_channels(EEG_ica, minCorr, 15, [], maxTol, nSamp);
     info.badChan = {oriChanlocs(badChan).labels};
     if any(badChan)
         EEG = pop_select(EEG, 'nochannel', find(badChan));
     end
 
-    % ── 3d. ASR on the ICA copy (cutoff 80) ───────────────────────────
+    % -- 3d. ASR on the ICA copy (cutoff 80) ---------------------------
     cleanEEG_asr1 = clean_asr(EEG_ica, asr_thresh1, [], [], [], [], [], [], [], false, []);
     mask1 = sum(abs(EEG_ica.data - cleanEEG_asr1.data), 1) > 1e-10;
     info.ASR1_pct = round(sum(mask1) / numel(mask1) * 100, 2);
     EEG_ica = cleanEEG_asr1;
 
-    % ── 3e. Interpolate the bad channels ──────────────────────────────
+    % -- 3e. Interpolate the bad channels ------------------------------
     if any(badChan)
         EEG_ica = pop_interp(EEG_ica, oriChanlocs, 'spherical');
         EEG     = pop_interp(EEG, oriChanlocs, 'spherical');
     end
 
-    % ── 3f. ICA at the rank of the data ───────────────────────────────
+    % -- 3f. ICA at the rank of the data -------------------------------
     dataRank = sum(eig(cov(double(EEG.data'))) > 1e-7);
     EEG_ica  = pop_runica(EEG_ica, 'icatype', 'runica', 'options', {'extended', 1, 'pca', dataRank});
     EEG.icaweights  = EEG_ica.icaweights;
@@ -162,7 +162,7 @@ for iF = 1:numel(files)
     EEG.icachansind = EEG_ica.icachansind;
     EEG = eeg_checkset(EEG);
 
-    % ── 3g. ICLabel: muscle and eye components removed ────────────────
+    % -- 3g. ICLabel: muscle and eye components removed ----------------
     EEG = pop_iclabel(EEG, 'default');
     EEG = pop_icflag(EEG, ica_flags);
     badComp = find(EEG.reject.gcompreject);
@@ -172,17 +172,17 @@ for iF = 1:numel(files)
     EEG.icaact = [];
     EEG = eeg_checkset(EEG);
 
-    % ── 3h. ASR on the cleaned data (cutoff 15) ───────────────────────
+    % -- 3h. ASR on the cleaned data (cutoff 15) -----------------------
     cleanEEG_asr2 = clean_asr(EEG, asr_thresh2, [], [], [], [], [], [], [], false, []);
     mask2 = sum(abs(EEG.data - cleanEEG_asr2.data), 1) > 1e-10;
     info.ASR2_pct = round(sum(mask2) / numel(mask2) * 100, 2);
     EEG = cleanEEG_asr2;
 
-    % ── 3i. Filter ECG and respiration ────────────────────────────────
+    % -- 3i. Filter ECG and respiration --------------------------------
     ECG  = pop_eegfiltnew(ECG,  'locutoff', 1.0);
     RESP = pop_eegfiltnew(RESP, 'hicutoff', 1.0);
 
-    % ── 3j. Remove the samples where the ECG is contaminated ──────────
+    % -- 3j. Remove the samples where the ECG is contaminated ----------
     mask_hf = detect_ecg_artifacts(ECG, 'WinSec', ECG_WIN_SEC, 'HFthresh', ECG_HF_THRESH, ...
         'AmpThresh', ECG_AMP_THRESH, 'Plot', false);
     info.ECG_pct_bad = round(sum(mask_hf) / numel(mask_hf) * 100, 2);
@@ -208,7 +208,7 @@ for iF = 1:numel(files)
     EEG.RESP = pop_select(physio, 'channel', 2);
     info.dur_clean_min = round(EEG.pnts / EEG.srate / 60, 2);
 
-    % ── 3k. Save ──────────────────────────────────────────────────────
+    % -- 3k. Save ------------------------------------------------------
     info.status = 'ok';
     pop_saveset(EEG, 'filepath', outFolder, 'filename', sprintf('%s_ses%d.set', subject, iSession));
     sInfo = store(sInfo, info);

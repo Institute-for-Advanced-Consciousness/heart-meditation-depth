@@ -485,7 +485,7 @@ def plot_depth_profile(depth_levels, prof_mean, prof_sem, l2_table, cond_tag,
         ax.grid(True, alpha=0.15)
         ax.set_title(title, fontsize=10)
 
-    fig.suptitle(f'FMT depth profile — {cond_tag}, {conf_key}', fontsize=10)
+    fig.suptitle(f'FMT depth profile - {cond_tag}, {conf_key}', fontsize=10)
     plt.tight_layout()
     fig.savefig(output_path, dpi=200)
     plt.close(fig)

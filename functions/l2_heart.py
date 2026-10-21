@@ -147,12 +147,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-# ── Shared parts, imported from l2_run ──────────────────────────────────────
+# -- Shared parts, imported from l2_run --------------------------------------
 # `_clusters` is the cluster-labelling step shared with the other L2 code.
 # CFA_WINDOW_MS and SEED are imported so that each has one definition.
 from l2_run import _clusters, CFA_WINDOW_MS, SEED  # noqa: E402
 
-# ── The weighting and the weighted readout, imported from the FMT arm ────────
+# -- The weighting and the weighted readout, imported from the FMT arm --------
 from fmt_depth_pipeline import shrunk_ivw, signflip_ttest                 # noqa: E402
 
 __all__ = [
@@ -162,9 +162,9 @@ __all__ = [
     'decide_detected', 'write_table', 'FIELDS', 'IVW_OWN', 'KNOWN_SCHEMES',
 ]
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # CONSTANTS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 WEIGHT_SCHEMES = ('unweighted', 'precision_nseg', 'ivw_shrunk')
 # ivw_own is accepted everywhere a scheme is named but is not a default: the
 # runner's L2_SCHEMES defaults to WEIGHT_SCHEMES. Ask for it by name.
@@ -191,9 +191,9 @@ MAX_NULL_GB = 4.0
 MEASURE_IS_TF = {'hep': False, 'hrsp': True, 'hepc': True}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # CONSOLE OUTPUT THAT CANNOT KILL A RUN
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Every warning in this module is printed after the compute and before
 # write_table, and print() of a warning glyph raises UnicodeEncodeError on a
 # non-UTF-8 stdout. On Windows a redirect, pipe, log file or subprocess capture
@@ -238,9 +238,9 @@ def _emit(msg=''):
     print(_console_safe(msg))
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # CFA WINDOW
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def cfa_overlap(start_ms, end_ms, window=CFA_WINDOW_MS):
     """True when [start_ms, end_ms] reaches into the CFA window.
 
@@ -255,9 +255,9 @@ def cfa_overlap(start_ms, end_ms, window=CFA_WINDOW_MS):
     return bool(start_ms <= window[1] and end_ms >= window[0])
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # INPUT MARSHALLING
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _entry(subject, measure):
     """Normalise one subject's measure entry to (beta, svar, n_units) or None.
 
@@ -298,7 +298,7 @@ def _stack_measure(subjects, measure):
             # would produce a plausible-looking group map over incomparable cells.
             raise ValueError(
                 f'{measure}: subject {s.get("subject", i)} has slope map shape '
-                f'{b.shape} but the cohort shape is {shape} — refusing to stack '
+                f'{b.shape} but the cohort shape is {shape} - refusing to stack '
                 f'maps on different axes.')
         betas.append(b)
         # nanmean over the whole map. Inf survives nanmean as Inf, which is what
@@ -327,9 +327,9 @@ def _listwise_keep(X):
     return np.isfinite(X).all(axis=ax)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # WEIGHTS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def build_ivw_weights(subjects, ivw_measure='hep', verbose=True,
                       label='ivw_shrunk'):
     """Shrunk inverse-variance weight per subject, over the full subject list.
@@ -369,7 +369,7 @@ def build_ivw_weights(subjects, ivw_measure='hep', verbose=True,
             f"ivw_measure={ivw_measure!r} (all NaN, Inf or <= 0). These weights "
             f"come from the HEP slope variance for every measure, which is why "
             f"'hep' is the default. If "
-            f"this run has no HEP maps, set ivw_measure explicitly — and note "
+            f"this run has no HEP maps, set ivw_measure explicitly - and note "
             f"that a per-measure ivw weighting makes the between-measure "
             f"comparison rest on different weights.")
     if verbose:
@@ -381,11 +381,11 @@ def build_ivw_weights(subjects, ivw_measure='hep', verbose=True,
             # Exact identification: cell_ols returns svar = Inf at nUnits == nP,
             # so the subject is fit, enters `unweighted`, and gets zero IVW
             # weight. Reported because it is otherwise silent.
-            _emit(f'  [{label}] ⚠️ {n_zero} subject(s) carry ZERO weight '
-                  f'(svar non-finite or <= 0 — usually cell_ols exact identification, '
+            _emit(f'  [{label}] {n_zero} subject(s) carry ZERO weight '
+                  f'(svar non-finite or <= 0 - usually cell_ols exact identification, '
                   f'svar = Inf). They still enter the UNWEIGHTED map.')
         if info['eff_n'] < 0.5 * max(info['nUsed'], 1):
-            _emit(f'  [{label}] ⚠️ effective n is under half the real n — this '
+            _emit(f'  [{label}] effective n is under half the real n - this '
                   'result rests on a subset of subjects. Read unweighted as primary.')
     return w_all, info
 
@@ -427,7 +427,7 @@ def build_weights(scheme, nseg, ivw_w=None):
         if not np.all(np.isfinite(w)) or np.any(w <= 0):
             raise ValueError(
                 'precision_nseg: segment counts must be finite and > 0, got '
-                f'{w[~(np.isfinite(w) & (w > 0))]} — subject_slopes returns '
+                f'{w[~(np.isfinite(w) & (w > 0))]} - subject_slopes returns '
                 'n_units = 0 for a subject it refused; that subject should never '
                 'have reached the stack.')
     elif scheme == 'ivw_shrunk':
@@ -452,7 +452,7 @@ def build_weights(scheme, nseg, ivw_w=None):
     tot = w.sum()
     if not np.isfinite(tot) or tot <= 0:
         raise ZeroDivisionError(
-            f'{scheme}: all weights are zero — nothing to test. Under ivw_shrunk '
+            f'{scheme}: all weights are zero - nothing to test. Under ivw_shrunk '
             'this means every subject had a non-finite slope variance.')
     return w * (len(w) / tot)          # mean 1
 
@@ -464,9 +464,9 @@ def kish_n_eff(w):
     return float(w.sum() ** 2 / np.sum(w ** 2))
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # WEIGHTED CLUSTER PERMUTATION
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _check_memory(n_cell, n_perm, max_gb=MAX_NULL_GB):
     """Refuse to allocate a null t-array bigger than max_gb.
 
@@ -479,7 +479,7 @@ def _check_memory(n_cell, n_perm, max_gb=MAX_NULL_GB):
         raise MemoryError(
             f'null t-array would be {gb:.2f} GiB ({n_cell} cells x {n_perm} '
             f'permutations x 8 B) which exceeds max_gb={max_gb}. Reduce n_perm, '
-            f'restrict the window, or raise max_gb deliberately — do NOT replace '
+            f'restrict the window, or raise max_gb deliberately - do NOT replace '
             f'the matmul with a permutation loop.')
     return gb
 
@@ -562,7 +562,7 @@ def cluster_perm_weighted(X, w, n_perm=1000, seed=SEED, max_gb=MAX_NULL_GB,
         # back p = 1/1 = 1.0, a clean-looking null.
         raise ValueError(
             f'n_perm = {n_perm}: column 0 is the identity (it supplies t_obs), so '
-            f'the null has n_perm - 1 members — n_perm must be at least 2, and '
+            f'the null has n_perm - 1 members - n_perm must be at least 2, and '
             f'anything below a few hundred cannot resolve a usable p.')
     if X.ndim == 2:                              # HEP: [nT x nSub] -> [1 x nT x nSub]
         X = X[None]
@@ -570,7 +570,7 @@ def cluster_perm_weighted(X, w, n_perm=1000, seed=SEED, max_gb=MAX_NULL_GB,
     if nSub != len(w):
         raise ValueError(f'{nSub} subjects in X but {len(w)} weights.')
     if not np.isfinite(X).all():
-        raise ValueError('cluster_perm_weighted got non-finite cells — apply '
+        raise ValueError('cluster_perm_weighted got non-finite cells - apply '
                          '_listwise_keep to X and w together before calling.')
     _check_memory(nF * nT, n_perm, max_gb)
 
@@ -636,9 +636,9 @@ def _hedges_J(n_use):
     return 1.0 - 3.0 / (4.0 * (n_use - 1.0) - 1.0)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE TIDY TABLE
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 FIELDS = (
     # N_eff_kish (always the Kish effective n), N_dropped_nonfinite (NaN or Inf
     # drops a subject) and SumAbsT (sum|t|, not a signed sum) are named for
@@ -678,9 +678,9 @@ def write_table(rows, path):
     return path
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # MAIN DRIVER
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
                  measures=('hep', 'hrsp', 'hepc'), schemes=WEIGHT_SCHEMES,
                  n_perm=1000, alpha=0.05, seed=SEED, ivw_measure='hep',
@@ -746,7 +746,7 @@ def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
     if not (0.0 < alpha < 1.0):
         raise ValueError(
             f'alpha must be in (0, 1), got {alpha!r}. It sets the cluster-forming '
-            f'threshold AND the survival rule — see the alpha note below.')
+            f'threshold AND the survival rule - see the alpha note below.')
 
     axes = {}
     for m in measures:
@@ -767,7 +767,7 @@ def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
         tms, frs = axes[measure]
         if X is None:
             if verbose:
-                _emit(f'\n== {measure.upper()} == no subject supplied a map — skipped')
+                _emit(f'\n== {measure.upper()} == no subject supplied a map - skipped')
             for sch in schemes:
                 rows.append(_blank_row(measure, sch, 'skipped:no_maps', 0, 0, np.nan,
                                        'no subject supplied a map for this measure'))
@@ -804,7 +804,7 @@ def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
                     f'but the slope map has {Xk.shape[0]}.')
 
         if verbose:
-            _emit(f'\n{"=" * 78}\n  L2 — {measure.upper()}   '
+            _emit(f'\n{"=" * 78}\n  L2 - {measure.upper()}   '
                   f'n = {n_sub} subjects'
                   + (f'  ({n_drop} dropped: a non-finite cell somewhere in the '
                      f'map)' if n_drop else '')
@@ -812,7 +812,7 @@ def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
 
         if n_sub < MIN_SUB_L2:
             if verbose:
-                _emit(f'  n = {n_sub} < MIN_SUB_L2 = {MIN_SUB_L2} — not tested')
+                _emit(f'  n = {n_sub} < MIN_SUB_L2 = {MIN_SUB_L2} - not tested')
             for sch in schemes:
                 rows.append(_blank_row(measure, sch, 'skipped:too_few_subjects',
                                        n_sub, n_drop, np.nan,
@@ -832,7 +832,7 @@ def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
                 # A scheme that cannot be built is recorded as SKIPPED with the
                 # reason, never as a null.
                 if verbose:
-                    _emit(f'  {sch:15s}: SKIPPED — {exc}')
+                    _emit(f'  {sch:15s}: SKIPPED - {exc}')
                 rows.append(_blank_row(measure, sch, 'skipped:bad_weights',
                                        n_sub, n_drop, np.nan, str(exc)))
                 continue
@@ -902,7 +902,7 @@ def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
                     _emit(f'  {sch:15s}: cl{r["Cluster"]} p={r["perm_p"]:.4f}{star} '
                           f'g={r["HedgesG"]:+.3f} '
                           f'{r["Start_ms"]:.0f}..{r["End_ms"]:.0f} ms{hz}'
-                          f'{"   ⚠️ CFA WINDOW" if r["CFA_flag"] else ""}')
+                          f'{"   CFA WINDOW" if r["CFA_flag"] else ""}')
                 if n_cl_total > len(shown):
                     _emit(f'  {"":15s}  (+{n_cl_total - len(shown)} further '
                           f'supra-threshold cluster(s), best p={best_p:.4f}; '
@@ -917,7 +917,7 @@ def run_l2_heart(subjects, times_hep=None, times_tf=None, freqs=None,
     mixed_surv = [r for r in rows if r['Status'] == 'ok' and r['Survived']
                   and r['Mixed_polarity']]
     if mixed_surv:
-        _emit('\n⚠️  MIXED-POLARITY SURVIVING CLUSTER(S): '
+        _emit('\n MIXED-POLARITY SURVIVING CLUSTER(S): '
               + ', '.join(f'{r["Measure"]}/{r["Scheme"]} cl{r["Cluster"]}'
                           for r in mixed_surv))
         _emit('    the shared labeller clusters on |t|, so opposite-signed blobs')
@@ -993,7 +993,7 @@ def _cluster_row(measure, scheme, c, rank, t_obs, lab, X3, w, tms, frs,
 
     note = ''
     if mixed:
-        note = ('mixed-polarity cluster (|t| clustering can join tails) — '
+        note = ('mixed-polarity cluster (|t| clustering can join tails) - '
                 'cluster-mean sign-flip suppressed')
 
     return {
@@ -1022,9 +1022,9 @@ def _cluster_row(measure, scheme, c, rank, t_obs, lab, X3, w, tms, frs,
     }
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # DETECTION
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def decide_detected(rows, sig_priority=SIG_PRIORITY, verbose=True):
     """Which measures count as detected, and under which scheme.
 
@@ -1038,7 +1038,7 @@ def decide_detected(rows, sig_priority=SIG_PRIORITY, verbose=True):
     """
     prio = [s for s in sig_priority if s != 'ivw_shrunk']
     if len(prio) != len(sig_priority):
-        _emit('  ⚠️ ivw_shrunk was passed in sig_priority and has been REMOVED: '
+        _emit('  ivw_shrunk was passed in sig_priority and has been REMOVED: '
               'it is a robustness reading, never a detection scheme.')
 
     measures = []
@@ -1062,7 +1062,7 @@ def decide_detected(rows, sig_priority=SIG_PRIORITY, verbose=True):
         _emit(f'\n  DETECTED (priority {" > ".join(prio)}):')
         for meas, d in detected.items():
             if d['sig']:
-                flag = ' ⚠️ CFA WINDOW' if any(c['CFA_flag'] for c in d['clusters']) else ''
+                flag = ' CFA WINDOW' if any(c['CFA_flag'] for c in d['clusters']) else ''
                 _emit(f'    {meas.upper():5s} : YES ({d["scheme"]}, '
                       f'{len(d["clusters"])} cluster(s), '
                       f'best p={min(c["perm_p"] for c in d["clusters"]):.4f}){flag}')

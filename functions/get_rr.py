@@ -146,17 +146,17 @@ def get_rr(signal, fs, times=None, *,
             raise GetRRError(
                 f'get_rr: times has {times.size} samples, signal has {n}.')
 
-    # ── 1. BANDPASS ────────────────────────────────────────────────────────
+    # -- 1. BANDPASS --------------------------------------------------------
     if bandpass is False or bandpass is None:
         sig = raw.copy()
     else:
         sig = qrs_bandpass(raw, fs, bp=tuple(float(v) for v in bandpass))
 
-    # ── 2. FLATLINE CHECK ──────────────────────────────────────────────────
+    # -- 2. FLATLINE CHECK --------------------------------------------------
     if np.percentile(np.abs(sig), 95) < FLATLINE_P95:
         raise GetRRError('get_rr: ECG amplitude too small - likely a flat line.')
 
-    # ── 3. P&T: DIFFERENTIATE, SQUARE, INTEGRATE ───────────────────────────
+    # -- 3. P&T: DIFFERENTIATE, SQUARE, INTEGRATE ---------------------------
     # `[0; diff(signal)]` prepends a zero, so the derivative is the same
     # length as the signal and every later index stays in the signal's frame.
     d = np.concatenate(([0.0], np.diff(sig)))
@@ -172,7 +172,7 @@ def get_rr(signal, fs, times=None, *,
     # explicitly, the same correction qrs_bandpass makes.
     sig_int = filtfilt(b_int, 1.0, sq, padlen=3 * (b_int.size - 1))
 
-    # ── 4. ENERGY THRESHOLD ────────────────────────────────────────────────
+    # -- 4. ENERGY THRESHOLD ------------------------------------------------
     # get_RR's `signal_filt(fs : min(fs*90, nSamp))` is 1-based and inclusive
     # (MATLAB indexing): elements fs..M become python [fs-1 : M]. Skips the
     # first second, caps at 90 s of statistics.
@@ -187,7 +187,7 @@ def get_rr(signal, fs, times=None, *,
     if not poss.any():
         raise GetRRError('get_rr: no QRS candidates found - check signal quality.')
 
-    # ── 5. SEARCH-BACK FOR MISSED BEATS ────────────────────────────────────
+    # -- 5. SEARCH-BACK FOR MISSED BEATS ------------------------------------
     if search_back:
         ind = np.flatnonzero(poss)
         if ind.size > 2:
@@ -200,7 +200,7 @@ def get_rr(signal, fs, times=None, *,
                     a, b = ind[m], ind[m + 1]
                     poss[a:b + 1] |= sig_int[a:b + 1] > (0.5 * peak_thresh * en_thres)
 
-    # ── 6. SEGMENT BOUNDARIES ──────────────────────────────────────────────
+    # -- 6. SEGMENT BOUNDARIES ----------------------------------------------
     pi = poss.astype(np.int8)
     left = np.flatnonzero(np.diff(np.concatenate(([0], pi))) == 1)
     right = np.flatnonzero(np.diff(np.concatenate((pi, [0]))) == -1)
@@ -209,7 +209,7 @@ def get_rr(signal, fs, times=None, *,
         raise GetRRError('get_rr: no QRS segments found after thresholding.')
     left, right = left[:nb], right[:nb]
 
-    # ── 7. POLARITY ────────────────────────────────────────────────────────
+    # -- 7. POLARITY --------------------------------------------------------
     if polarity is not None:
         pol_global = int(np.sign(polarity)) or 1
     else:
@@ -232,7 +232,7 @@ def get_rr(signal, fs, times=None, *,
     else:
         pol_seg = pol_global
 
-    # ── 8. PEAK LOCALIZATION ───────────────────────────────────────────────
+    # -- 8. PEAK LOCALIZATION -----------------------------------------------
     peaks = np.empty(nb, dtype=np.int64)
     pkval = np.empty(nb, dtype=float)
     for i in range(nb):
@@ -242,7 +242,7 @@ def get_rr(signal, fs, times=None, *,
         peaks[i] = a + j
         pkval[i] = s[j]
 
-    # ── 9. REFRACTORY DEDUP BY AMPLITUDE ───────────────────────────────────
+    # -- 9. REFRACTORY DEDUP BY AMPLITUDE -----------------------------------
     order = np.argsort(peaks, kind='stable')
     peaks, pkval = peaks[order], pkval[order]
     keep = np.ones(peaks.size, dtype=bool)
@@ -259,7 +259,7 @@ def get_rr(signal, fs, times=None, *,
     n_dedup = int((~keep).sum())
     peaks = peaks[keep]
 
-    # ── 10. MICRO-REFINEMENT, +/-15 ms ─────────────────────────────────────
+    # -- 10. MICRO-REFINEMENT, +/-15 ms -------------------------------------
     micro = max(1, int(round(MICRO_REFINE_SEC * fs)))
     for k in range(peaks.size):
         w1 = max(0, int(peaks[k]) - micro)
@@ -273,7 +273,7 @@ def get_rr(signal, fs, times=None, *,
     _, first = np.unique(peaks, return_index=True)
     peaks = peaks[np.sort(first)]
 
-    # ── 11. RR / HR, AND THE DROPPED FIRST PEAK ────────────────────────────
+    # -- 11. RR / HR, AND THE DROPPED FIRST PEAK ----------------------------
     rr = np.diff(peaks) / fs
     rr_t = times[peaks] if peaks.size else np.array([], float)
     with np.errstate(divide='ignore', invalid='ignore'):

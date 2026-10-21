@@ -207,7 +207,7 @@ def lit_ms(p):
     except (TypeError, ValueError, IndexError):
         raise ValueError(
             f'LIT_MS must be a 2-element (lo_ms, hi_ms), got {v!r}. It sets the '
-            f'window the literature test runs over — a malformed one would '
+            f'window the literature test runs over - a malformed one would '
             f'produce an empty L2 that reads as a null.')
     if not (hi > lo):
         raise ValueError(f'LIT_MS {v!r}: hi must be greater than lo.')
@@ -233,15 +233,15 @@ __all__ = [
     'load_l2_cells', 'models_after_cond_rule',
 ]
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # WHAT THE .npz FILES WERE EXTRACTED AT
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # These are facts about the data on disk (as written by extract_npz.py), not
 # knobs, and are defined below the cond rule. Every run's window is cut out of
 # that segment, so a run can ask for a shorter epoch or a larger PRE_END and
 # nothing else. Re-extract if you need more; do not edit these to make an
 # impossible request look possible.
-# ── THE cond RULE, IN ONE PLACE ─────────────────────────────────────────────
+# -- THE cond RULE, IN ONE PLACE ---------------------------------------------
 # `run()` drops cond/condXdepth when INCLUDE_SAPO is False and stamps the
 # reduced model list into .run_params.json, since it cannot fit them. A caller
 # deciding whether an arm is already done must compare against that reduced
@@ -274,12 +274,12 @@ EXTRACT_MIN_CONF = 4            # confidence floor applied at extraction
 # above the 45 min gate.
 BORDERLINE_MARGIN_MIN = 15.0
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # PARAMETERS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 DEFAULT_RUN_PARAMS = dict(DEFAULT_PARAMS)
 DEFAULT_RUN_PARAMS.update(
-    # ── The four that heart_depth_tag reads through a silent .get() ─────────
+    # -- The four that heart_depth_tag reads through a silent .get() ---------
     # Present here explicitly; see the module docstring.
     EPOCH_DUR=60,
     PRE_END=3,               # not EXTRACT_PRE_END, the geometry of the segments
@@ -290,7 +290,7 @@ DEFAULT_RUN_PARAMS.update(
     # final number.
     nPerm=1000,
 
-    # ── which L1 designs to fit ────────────────────────────────────────────
+    # -- which L1 designs to fit --------------------------------------------
     # `subject_slopes` builds each covariate column from the per-segment
     # covariates session_measures computes (heart_depth_pipeline.COVARIATE_MODELS).
     #
@@ -301,7 +301,7 @@ DEFAULT_RUN_PARAMS.update(
     # 'cond' is dropped automatically when INCLUDE_SAPO is False: a run with no
     # sapo segments has a constant cond column, which is rank deficient.
     #
-    # ── moderation ─────────────────────────────────────────────────────────
+    # -- moderation ---------------------------------------------------------
     # `<cov>Xdepth` fits [intercept, depth, X, depth*X] and sends the
     # interaction coefficient to L2. It answers a different question from the
     # covariate model beside it: not 'is the depth effect explained by X'
@@ -326,7 +326,7 @@ DEFAULT_RUN_PARAMS.update(
     # segment grain for it.
     MEASURES=('hep', 'hrsp', 'hepc'),
 
-    # ── L2 ──────────────────────────────────────────────────────────────────
+    # -- L2 ------------------------------------------------------------------
     ALPHA=0.05,              # also sets the cluster-forming threshold
     L2_SCHEMES=WEIGHT_SCHEMES,   # all three: unweighted / precision_nseg / ivw_shrunk
     L2_IVW_MEASURE='hep',    # HEP's slope variance weights every measure
@@ -363,7 +363,7 @@ DEFAULT_RUN_PARAMS.update(
     # it in the tag too would give one analysis two names.
     GRAINS=('cell', 'segment', 'perbeat'),
 
-    # ── recorded, not enforced (see the module docstring) ───────────────────
+    # -- recorded, not enforced (see the module docstring) -------------------
     MIN_CONF=EXTRACT_MIN_CONF,
     SESSION_DUR_SOURCE='npz_span_lowerbound',
 )
@@ -439,9 +439,9 @@ def grain_schemes(p, grain):
 GRAINS_NOT_PORTED = {}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # PARAMETER VALIDATION: refusals, never repairs
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _check_tag_params(p):
     """Refuse to build a result path from a params dict the tag cannot describe.
 
@@ -454,7 +454,7 @@ def _check_tag_params(p):
     missing = [k for k in _TAG_REQUIRED if k not in p or p[k] is None]
     if missing:
         raise ValueError(
-            'params is missing ' + ', '.join(missing) + ' — result_path.'
+            'params is missing ' + ', '.join(missing) + ' - result_path.'
             'heart_depth_tag reads these through .get() with a silent default, '
             'so the folder name would describe a run that did not happen. Pass '
             'them explicitly (DEFAULT_RUN_PARAMS does).')
@@ -482,7 +482,7 @@ def _check_tag_params(p):
     # off, set DO_BASELINE_CORRECT=False (tag: `nobl`).
     if p.get('DO_BASELINE_CORRECT') and str(p.get('BASELINE_METHOD', 'glm')) != 'glm':
         raise ValueError(
-            f"BASELINE_METHOD={p.get('BASELINE_METHOD')!r} is not implemented — "
+            f"BASELINE_METHOD={p.get('BASELINE_METHOD')!r} is not implemented - "
             f"glm_baseline only does 'glm' and does not read this key, so the "
             f"run would apply a GLM baseline while the folder tag claimed "
             f"{p.get('BASELINE_METHOD')!r}. To run WITHOUT a baseline set "
@@ -492,7 +492,7 @@ def _check_tag_params(p):
         raise ValueError(
             f"IC_SELECT_METHOD must be 'lee', got {p.get('IC_SELECT_METHOD')!r}.")
 
-    # ── PPC + a sham norm: inert, but the folder name says otherwise ─────────
+    # -- PPC + a sham norm: inert, but the folder name says otherwise ---------
     # `use_sham` is gated on both knobs (in lee_selection:
     #     use_sham = norm_mode in ('sham', 'sham_raw') and criterion == 'hrsp'
     # ), so under 'ppc' no sham is drawn and the scores are byte-identical to
@@ -510,7 +510,7 @@ def _check_tag_params(p):
             "IC_SEL_NORM=%r with HRSP_SEL_CRITERION=%r: the sham branch is "
             "gated on criterion=='hrsp', so NO sham is drawn and selection is "
             "identical to IC_SEL_NORM='raw'. The folder name will still read "
-            "'%s' and README.txt will still list IC_SEL_SHAM_N — neither "
+            "'%s' and README.txt will still list IC_SEL_SHAM_N - neither "
             "reflects what ran. Set IC_SEL_NORM='raw' for a truthful name."
             % (p.get('IC_SEL_NORM'), p.get('HRSP_SEL_CRITERION'),
                str(p.get('IC_SEL_NORM', '')).replace('_', '')),
@@ -637,7 +637,7 @@ def _check_path_length(main, verbose=True,
     """
     n = len(os.path.abspath(os.path.join(main, longest_name)))
     if n > 250 and verbose:
-        _emit(f'\n  ⚠️ LONGEST OUTPUT PATH WOULD BE {n} CHARACTERS; Windows '
+        _emit(f'\n  LONGEST OUTPUT PATH WOULD BE {n} CHARACTERS; Windows '
               f'MAX_PATH is 260.\n     Shorten the results root (HMD_RESULTS, see '
               f'config.py) or enable long paths BEFORE starting the compute.')
     return n
@@ -674,9 +674,9 @@ def run_paths(results_root, p, create=True, grain=None):
     return run_root, main, method, tag
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE EPOCH WINDOW
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # window_indices is imported from heart_depth_pipeline, not mirrored: two
 # implementations of one window would be the defect. It is re-exported so the
 # accounting code here describes the window that was actually cut.
@@ -685,9 +685,9 @@ from heart_depth_pipeline import window_indices  # noqa: E402  (re-export)
 
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # PER-SESSION PREPARATION (gates + window + the in-memory npz)
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _minimal_session_npz(npz_path, p):
     """Apply the pre-measure gates; return (what to hand session_measures, record).
 
@@ -721,7 +721,7 @@ def _minimal_session_npz(npz_path, p):
         depth = np.asarray(d['seg_depth']).astype(int)
         rec['n_seg_raw'] = int(seg_len.size)
 
-        # ── GATE: MIN_SESSION_MIN, on the LOWER-BOUND proxy ─────────────────
+        # -- GATE: MIN_SESSION_MIN, on the LOWER-BOUND proxy -----------------
         dur = session_duration_lowerbound_min(block_spans, seg_span, fs)
         rec['dur_min_lowerbound'] = round(float(dur), 1)
         if p.get('MIN_SESSION_MIN') and np.isfinite(dur) \
@@ -729,10 +729,10 @@ def _minimal_session_npz(npz_path, p):
             rec['status'] = 'dropped'
             rec['reason'] = (f'MIN_SESSION_MIN: duration lower bound {dur:.1f} '
                              f'min < {float(p["MIN_SESSION_MIN"]):g} min '
-                             f'(lower bound, not the .set header — see header)')
+                             f'(lower bound, not the .set header - see header)')
             return None, rec
 
-        # ── GATE: CONDITION + DEPTH LEVELS ──────────────────────────────────
+        # -- GATE: CONDITION + DEPTH LEVELS ----------------------------------
         # cond 0 = nosapo, 1 = sapo, 2 = pre-meditation, 3 = post-meditation
         # (as written by extract_npz.py). Only the meditation reports are
         # analysed; see the module docstring's condition-filter note.
@@ -746,7 +746,7 @@ def _minimal_session_npz(npz_path, p):
                              + f' with depth in {list(p["DEPTH_LEVELS"])}')
             return None, rec
 
-        # ── NOT A GATE: HOW LONG THE ANALYSED WINDOW WILL ACTUALLY BE ───────
+        # -- NOT A GATE: HOW LONG THE ANALYSED WINDOW WILL ACTUALLY BE -------
         # Reporting only: the cut belongs to session_measures and is not made
         # here. window_indices returns scalar bounds plus a per-segment mask:
         # the window is anchored to the segment start, so [lo, hi) is the same
@@ -765,7 +765,7 @@ def _minimal_session_npz(npz_path, p):
             avail = np.asarray(seg_len)[keep & ~holds_full].min() - lo_ix
             rec['shortest_window_s'] = round(float(max(avail, 0) / fs), 1)
 
-        # ── GATE: MIN_DEPTHS, PER SESSION ───────────────────────────────────
+        # -- GATE: MIN_DEPTHS, PER SESSION -----------------------------------
         # Per session and counting noSAPO + SAPO together. Applied here rather
         # than left to session_measures so the reason is nameable and so
         # pre-/post-meditation depths cannot count towards it.
@@ -777,7 +777,7 @@ def _minimal_session_npz(npz_path, p):
                              f'{int(p["MIN_DEPTHS"])}')
             return None, rec
 
-        # ── GATE: MIN_SEG_SESSION (per-session floor; 0 = off) ──────────────
+        # -- GATE: MIN_SEG_SESSION (per-session floor; 0 = off) --------------
         n_keep = int(keep.sum())
         if int(p.get('MIN_SEG_SESSION', 0)) and n_keep < int(p['MIN_SEG_SESSION']):
             rec['status'] = 'dropped'
@@ -785,14 +785,14 @@ def _minimal_session_npz(npz_path, p):
                              f'{int(p["MIN_SEG_SESSION"])}')
             return None, rec
 
-        # ── NOTHING FILTERED: HAND OVER THE ORIGINAL FILE ───────────────────
+        # -- NOTHING FILTERED: HAND OVER THE ORIGINAL FILE -------------------
         # No copy, no buffer, and (more importantly) no opportunity for this
         # module to differ from the file on disk by a rounding error.
         if bool(keep.all()):
             rec['status'] = 'prepared'
             return npz_path, rec
 
-        # ── BUILD THE FILTERED npz IN MEMORY ────────────────────────────────
+        # -- BUILD THE FILTERED npz IN MEMORY --------------------------------
         # The samples are copied verbatim, at full stored length. This selects
         # segments; it does not cut the analysis window. session_measures makes
         # that cut from whatever it is handed, and cutting here as well would
@@ -859,9 +859,9 @@ def _minimal_session_npz(npz_path, p):
         d.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # COHORT
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def build_cohort(data_dir, p, limit=None, verbose=True):
     """Gates + per-session measures for the whole cohort.
 
@@ -882,7 +882,7 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
         all_sessions = [s for s in all_sessions if s[0] in set(subjects_all)]
         if verbose:
             _emit(f'  --limit {limit}: {len(subjects_all)} subject(s), '
-                  f'{len(all_sessions)} session(s) — SMOKE TEST, not a cohort.')
+                  f'{len(all_sessions)} session(s) - SMOKE TEST, not a cohort.')
 
     sessions_by_subject, session_records = {}, []
     for k, (sid, ses, path) in enumerate(all_sessions, 1):
@@ -891,7 +891,7 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
         buf, rec = _minimal_session_npz(path, p)
         if buf is None:
             if verbose:
-                _emit(f'  DROPPED — {rec["reason"]}')
+                _emit(f'  DROPPED - {rec["reason"]}')
             session_records.append(rec)
             continue
         t0 = time.time()
@@ -904,7 +904,7 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
             rec['status'] = 'dropped'
             rec['reason'] = f'session_measures raised {type(exc).__name__}: {exc}'
             session_records.append(rec)
-            _emit(f'  DROPPED — {rec["reason"]}')
+            _emit(f'  DROPPED - {rec["reason"]}')
             continue
         finally:
             # `buf` is the original path when nothing was filtered out; only an
@@ -917,11 +917,11 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
             # the library, not a cohort decision, and says so.
             rec['status'] = 'dropped'
             rec['reason'] = sm_notes.get('skip_reason') or (
-                'session_measures returned no result and named no gate — this '
+                'session_measures returned no result and named no gate - this '
                 'is a defect in heart_depth_pipeline.session_measures, not a '
                 'cohort decision')
             session_records.append(rec)
-            _emit(f'  DROPPED — {rec["reason"]}')
+            _emit(f'  DROPPED - {rec["reason"]}')
             continue
         rec['status'] = 'kept'
         rec['n_seg_used'] = int(len(s['depth']))
@@ -967,10 +967,10 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
         session_records.append(rec)
         sessions_by_subject.setdefault(sid, []).append(s)
         if verbose:
-            _emit(f'  KEPT — {rec["n_seg_used"]} segment(s), IC {rec["ic"]}, '
+            _emit(f'  KEPT - {rec["n_seg_used"]} segment(s), IC {rec["ic"]}, '
                   f'{time.time() - t0:.1f} s')
 
-    # ── SUBJECT-LEVEL GATE: minSeg, pooled over sessions ────────────────────
+    # -- SUBJECT-LEVEL GATE: minSeg, pooled over sessions --------------------
     # `subject_slopes` enforces the same floor internally, so applying it here
     # changes no number; it makes the drop reportable instead of showing up as
     # a subject that quietly has no map. The ECG half of the subject QA gate is
@@ -1020,7 +1020,7 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
             srec['reason'] = f'minSeg: {n_seg} pooled segment(s) < {int(p["minSeg"])}'
         elif n_dep < 2:
             srec['status'] = 'dropped'
-            srec['reason'] = (f'{n_dep} distinct depth level(s) pooled — a slope '
+            srec['reason'] = (f'{n_dep} distinct depth level(s) pooled - a slope '
                               f'needs at least 2')
         elif not _ecg_ok:
             srec['status'] = 'dropped'
@@ -1043,15 +1043,10 @@ def _report_duration_proxy(p, session_records, verbose=True):
     _emit('\n  MIN_SESSION_MIN = ' + (f'{gate:g} min' if gate else '0 (gate off)'))
     if not gate:
         return
-    _emit('    ⚠️ THE .set DURATION IS NOT IN THE .npz. The gate is defined on '
-          'hdr.pnts/hdr.srate/60')
-    _emit('       (the .set header); '
-          'extract_npz.py never wrote it.')
-    _emit('       USED INSTEAD: max(block_spans[:,1], seg_span[:,1]) / fs / 60 — a '
-          'LOWER BOUND on')
-    _emit('       the recording length. Above the gate is certain; below it is a '
-          'drop the proxy')
-    _emit('       cannot fully justify, and each such session is named below.')
+    _emit('    The segment files do not store the recording length, so the check uses a '
+          'lower bound:')
+    _emit('    the end of the last meditation block or of the last segment, '
+          'whichever is later.')
     dur = np.array([r['dur_min_lowerbound'] for r in session_records], float)
     dropped = [r for r in session_records
                if str(r['reason']).startswith('MIN_SESSION_MIN')]
@@ -1063,19 +1058,16 @@ def _report_duration_proxy(p, session_records, verbose=True):
               f'{kept.min():.1f}-{kept.max():.1f} min '
               f'(margin over the gate: {kept.min() - gate:+.1f} min)')
     for r in dropped:
-        _emit(f'    ⚠️ DROPPED on the proxy: {r["subject"]} ses{r["session"]} '
-              f'lower bound {r["dur_min_lowerbound"]:.1f} min — the true '
-              f'recording is AT LEAST this long, so this drop is safe only '
-              f'because the bound is far below the gate.')
+        _emit(f'    excluded: {r["subject"]} ses{r["session"]}, lower bound '
+              f'{r["dur_min_lowerbound"]:.1f} min')
     borderline = [r for r in session_records
                   if np.isfinite(r['dur_min_lowerbound'])
                   and not str(r['reason']).startswith('MIN_SESSION_MIN')
                   and r['dur_min_lowerbound'] < gate + BORDERLINE_MARGIN_MIN]
     for r in borderline:
-        _emit(f'    ⚠️ BORDERLINE: {r["subject"]} ses{r["session"]} lower bound '
+        _emit(f'    note: {r["subject"]} ses{r["session"]} lower bound '
               f'{r["dur_min_lowerbound"]:.1f} min is within '
-              f'{BORDERLINE_MARGIN_MIN:g} min of the gate — the proxy cannot '
-              f'decide this one; check the .set header before quoting it.')
+              f'{BORDERLINE_MARGIN_MIN:g} min of the threshold')
 
 
 def print_accounting(session_records, subject_records, p, verbose=True):
@@ -1088,7 +1080,7 @@ def print_accounting(session_records, subject_records, p, verbose=True):
         n_keep = sum(1 for r in subject_records if r['status'] == 'kept')
         return n_keep, sum(1 for r in session_records if r['status'] == 'kept')
     _emit('\n' + '=' * 92)
-    _emit('  COHORT ACCOUNTING — sessions')
+    _emit('  COHORT ACCOUNTING - sessions')
     _emit('=' * 92)
     # `full` = segments long enough to hold the whole EPOCH_DUR window;
     # `short` = segments the library refused because the stored segment does
@@ -1104,10 +1096,10 @@ def print_accounting(session_records, subject_records, p, verbose=True):
               f'{r["n_seg_cond"]:5d} {r["n_seg_full_window"]:5d} '
               f'{r["n_seg_short"]:6d} {r["n_depths"]:4d} '
               f'{r["n_seg_used"]:5d} {r["ic"]:4d}  {r["status"]}'
-              + (f' — {r["reason"]}' if r['reason'] else ''))
+              + (f' - {r["reason"]}' if r['reason'] else ''))
     short = [r for r in session_records if r['n_seg_short']]
     if short:
-        _emit(f'\n  ⚠️ {sum(r["n_seg_short"] for r in short)} segment(s) in '
+        _emit(f'\n  {sum(r["n_seg_short"] for r in short)} segment(s) in '
               f'{len(short)} session(s) do not reach the requested '
               f'{float(p["EPOCH_DUR"]):g} s window.')
         _emit('     heart_depth_pipeline GATE 1b DROPS these with a reason '
@@ -1122,7 +1114,7 @@ def print_accounting(session_records, subject_records, p, verbose=True):
             _emit(f'       {r["subject"]} ses{r["session"]}: {r["n_seg_short"]} '
                   f'segment(s), shortest window {r["shortest_window_s"]} s')
     _emit('\n' + '=' * 92)
-    _emit('  COHORT ACCOUNTING — subjects')
+    _emit('  COHORT ACCOUNTING - subjects')
     _emit('=' * 92)
     _emit(f'  {"subject":9s} {"found":>5s} {"kept":>4s} {"segs":>5s} {"deps":>4s}  '
           f'status / why')
@@ -1130,16 +1122,16 @@ def print_accounting(session_records, subject_records, p, verbose=True):
         _emit(f'  {r["subject"]:9s} {r["n_sessions_found"]:5d} '
               f'{r["n_sessions_kept"]:4d} {r["n_segments"]:5d} '
               f'{r["n_depths_pooled"]:4d}  {r["status"]}'
-              + (f' — {r["reason"]}' if r['reason'] else ''))
+              + (f' - {r["reason"]}' if r['reason'] else ''))
     n_keep = sum(1 for r in subject_records if r['status'] == 'kept')
     n_drop = len(subject_records) - n_keep
     n_ses = sum(1 for r in session_records if r['status'] == 'kept')
     _emit(f'\n  {n_keep} subject(s) enter L1, {n_drop} dropped; '
           f'{n_ses}/{len(session_records)} session(s) kept.')
     if n_keep < MIN_SUB_L2:
-        _emit(f'  ⚠️ {n_keep} < MIN_SUB_L2 = {MIN_SUB_L2}: the L2 test will be '
+        _emit(f'  {n_keep} < MIN_SUB_L2 = {MIN_SUB_L2}: the L2 test will be '
               f'SKIPPED for every measure (l2_heart refuses a sign-flip null '
-              f'this small). Rows will read Status="skipped:too_few_subjects" — '
+              f'this small). Rows will read Status="skipped:too_few_subjects" - '
               f'a SKIP, never a null.')
     return n_keep, n_ses
 
@@ -1156,7 +1148,7 @@ def _write_csv(path, rows, fields):
     return path
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _combine_masks(outer, inner):
     """Compose a TLIMS mask with a within-TLIMS window mask.
 
@@ -1171,7 +1163,7 @@ def _combine_masks(outer, inner):
     if int(outer.sum()) != inner.size:
         raise ValueError(
             f'_combine_masks: inner mask has {inner.size} element(s) but the '
-            f'outer mask selects {int(outer.sum())}. These must match — the '
+            f'outer mask selects {int(outer.sum())}. These must match - the '
             f'inner mask is defined ON the outer selection.')
     out = np.zeros(outer.shape, bool)
     out[np.where(outer)[0][inner]] = True
@@ -1209,9 +1201,9 @@ def _restrict_time(subjects, measures, t_mask):
     return out
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # L1
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _l1_summary_columns():
     """Column order of l1_fit_summary.csv.
 
@@ -1302,7 +1294,7 @@ def fit_l1(sessions_by_subject, p, model, verbose=True, grain=GRAIN):
                     # listwise at L2 (l2_heart._listwise_keep), so a subject
                     # that "was fit" can still contribute nothing. Said so here.
                     row['Reason'] = (
-                        f'{100 * (1 - frac):.1f}% of cells non-finite — '
+                        f'{100 * (1 - frac):.1f}% of cells non-finite - '
                         f'cell_ols refused those columns; l2_heart deletes '
                         f'this subject LISTWISE from this measure')
                 # A dead baseline column is not a failure and not a null: the
@@ -1317,7 +1309,7 @@ def fit_l1(sessions_by_subject, p, model, verbose=True, grain=GRAIN):
                 if nd:
                     nc = diag.get('n_bl_cols', 0) or 0
                     msg = (f'{nd}/{nc} Alday baseline column(s) DEAD and '
-                           f'dropped — no baseline adjustment at '
+                           f'dropped - no baseline adjustment at '
                            + ('this frequency' if nd == 1 and nc == 1
                               else f'{nd} frequenc' + ('y' if nd == 1 else 'ies'))
                            + ' (df not spent)')
@@ -1326,16 +1318,16 @@ def fit_l1(sessions_by_subject, p, model, verbose=True, grain=GRAIN):
             l1_rows.append(row)
             if verbose:
                 _emit(f'    {sid} {meas:5s} {model:8s} {grain:7s}: '
-                      + ('REFUSED — ' + row['Reason'] if beta is None
+                      + ('REFUSED - ' + row['Reason'] if beta is None
                          else f'{nu} unit(s), {row["Frac_finite"]:.3f} finite'
-                              + (' ⚠️ ' + row['Reason'] if row['Reason'] else '')))
+                              + (' ' + row['Reason'] if row['Reason'] else '')))
         subjects.append(rec)
     return subjects, l1_rows
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE EXACT CLUSTER CELLS -> run_results.npz
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # A finished run persists the exact cluster cells, not only the bounding box
 # that the `l2_rows_json` rows carry (Start_ms/End_ms/Start_Hz/End_Hz). A
 # cluster is a connected set, so its box contains cells the test never
@@ -1532,31 +1524,30 @@ def _posthoc_status_rows(p, posthoc_errors, n_posthoc_rows=0):
     rows = []
     if not p.get('POSTHOC', True):
         r = dict.fromkeys(POSTHOC_FIELDS, '')
-        r['Note'] = ('POSTHOC=False — the battery was DISABLED for this run. '
-                     'This table is empty because it DID NOT RUN, not because '
-                     'nothing was detected.')
+        r['Note'] = ('POSTHOC=False: the post-hoc battery was not run. This table '
+                     'is empty because it did not run, not because nothing was '
+                     'detected.')
         rows.append(r)
     elif not n_posthoc_rows and not posthoc_errors:
         r = dict.fromkeys(POSTHOC_FIELDS, '')
-        r['Note'] = ('POST-HOC BATTERY RAN AND WAS GATED OUT: no effect survived '
-                     'the main model in this grain, so there was nothing to run '
-                     'a post-hoc ON. This is a MEASURED null, not a skipped '
-                     'check — the battery is deliberately never run on an effect '
-                     'that did not survive.')
+        r['Note'] = ('The post-hoc battery ran, but no effect survived the main '
+                     'model in this grain, so there was nothing to run it on. This '
+                     'is a tested null, not a skipped check: the battery is only '
+                     'run on an effect that survived.')
         rows.append(r)
     for key in sorted(posthoc_errors):
         model, wname = _split_l2_key(key)
         r = dict.fromkeys(POSTHOC_FIELDS, '')
         r.update(Model=model, Window=wname,
-                 Note=f'POST-HOC BATTERY FAILED: {posthoc_errors[key]} — this '
-                      f'is a FAILURE, not a null result.')
+                 Note=f'The post-hoc battery failed: {posthoc_errors[key]}. This '
+                      f'is a failure, not a null result.')
         rows.append(r)
     return rows
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE RUN
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _write_grain_failure(main, grain, p, err, tb):
     """RUN_FAILED.txt in the grain's main/: what died, and what is NOT here.
 
@@ -1574,7 +1565,7 @@ def _write_grain_failure(main, grain, p, err, tb):
          '  l1_fit_summary.csv   - the L1 did not complete',
          '  l2_heart_summary_*   - nothing was tested',
          '  run_summary.txt      - written only by a grain that finished', '',
-         '⚠️ THIS IS A FAILURE, NOT A NULL. Nothing was tested at this grain, so',
+         'This grain failed; it is not a null result. Nothing was tested at this grain, so',
          '   an absent result here must never be read as "ran and found nothing".',
          '   The other grains of this run are independent and may be complete -',
          '   check for run_results.npz in each <grain>_wise/main/.', '',
@@ -1600,7 +1591,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
     Returns the per-grain result dict.
     """
     t0 = time.time()
-    # ── L1, every model ─────────────────────────────────────────────────────
+    # -- L1, every model -----------------------------------------------------
     # The L2 axis must be the trimmed one. session_measures returns the full
     # HEP_WIN axis (-300..700 ms, 251 points), but subject_slopes fits over
     # TLIMS only (-100..600 ms, 176 points). Handing L2 the full axis would put
@@ -1614,7 +1605,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
     subjects_by_model, l1_rows_all = {}, []
     for model in tuple(p['MODELS']):
         if verbose:
-            _emit(f'\n{"=" * 92}\n  L1 — {grain} grain, model {model!r}'
+            _emit(f'\n{"=" * 92}\n  L1 - {grain} grain, model {model!r}'
                   + ('   (PRIMARY)' if model == p['PRIMARY_MODEL'] else '')
                   + f'\n{"=" * 92}')
         subs, rows = fit_l1(sess_by_sub, p, model, verbose=verbose,
@@ -1624,7 +1615,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
     _write_csv(os.path.join(main, 'l1_fit_summary.csv'), l1_rows_all,
                _l1_summary_columns())
 
-    # ── SAVE THE L1 MAPS *BEFORE* ANY L2 ────────────────────────────────────
+    # -- SAVE THE L1 MAPS *BEFORE* ANY L2 ------------------------------------
     # This ordering is the requirement: a post-hoc failure must not be able to
     # destroy a finished L1.
     payload = dict(
@@ -1662,7 +1653,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
     if verbose:
         _emit(f'\n  L1 SAVED (before any L2): {npz_path}')
 
-    # ── L2, PER MODEL, EACH IN ITS OWN try ──────────────────────────────────
+    # -- L2, PER MODEL, EACH IN ITS OWN try ----------------------------------
     l2_by_model, l2_errors, detected_by_model = {}, {}, {}
     l2_skipped = {}
     posthoc_rows, posthoc_errors = [], {}
@@ -1674,7 +1665,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
     l2_cells_by_key, l2_taxis_by_key = {}, {}
     for model in tuple(p['MODELS']):
         if verbose:
-            _emit(f'\n{"=" * 92}\n  L2 — {grain} grain, L1 model {model!r}'
+            _emit(f'\n{"=" * 92}\n  L2 - {grain} grain, L1 model {model!r}'
                   + ('   (PRIMARY)' if model == p['PRIMARY_MODEL'] else '')
                   + f'\n{"=" * 92}')
         for wname in tuple(p.get('L2_WINDOWS', ('full',))):
@@ -1694,8 +1685,8 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
                         f'window {wname!r} SKIPPED: LIT_MS {_lit} selects '
                         f'{int(t_mask.sum())} of {times.size} point(s) on the '
                         f'TLIMS axis {tuple(p["TLIMS"])}')
-                    _emit(f'  ⚠️ {l2_skipped[key]}. Widen TLIMS or drop '
-                          f'{wname!r} from L2_WINDOWS — not skipped silently.')
+                    _emit(f'  {l2_skipped[key]}. Widen TLIMS or drop '
+                          f'{wname!r} from L2_WINDOWS - not skipped silently.')
                     continue
                 subs_w = _restrict_time(subjects_by_model[model],
                                         grain_measures(p, grain), t_mask)
@@ -1706,7 +1697,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
                     f'would silently drop a test rather than run it.')
             t_ax = times[t_mask]
             if verbose and wname != 'full':
-                _emit(f'\n  — window {wname!r}: {t_ax[0]:.0f}..{t_ax[-1]:.0f} ms '
+                _emit(f'\n  - window {wname!r}: {t_ax[0]:.0f}..{t_ax[-1]:.0f} ms '
                       f'({t_ax.size} of {times.size} points)')
             cl_out = {}
             try:
@@ -1730,14 +1721,14 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
                 l2_cells_by_key[key] = dict(cl_out)
                 l2_taxis_by_key[key] = np.flatnonzero(t_mask)
 
-                # ── POST-HOC BATTERY, GATED ON DETECTION ────────────────
+                # -- POST-HOC BATTERY, GATED ON DETECTION ----------------
                 # Inside the L2 try/except on purpose. A post-hoc failure must
                 # not cost the L2 that already succeeded, and it must not read as
                 # "nothing survived"; it is recorded like any other failure.
                 if p.get('POSTHOC', True):
                     try:
                         if verbose:
-                            _emit(f'\n  — post-hoc battery ({key})')
+                            _emit(f'\n  - post-hoc battery ({key})')
                         # Every surviving (Measure, Scheme), not `detected`.
                         # `decide_detected` returns one scheme per measure and
                         # strips ivw_shrunk, which is right for deciding what
@@ -1764,7 +1755,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
                         posthoc_rows.extend(ph)
                     except Exception as exc:            # noqa: BLE001
                         posthoc_errors[key] = f'{type(exc).__name__}: {exc}'
-                        _emit(f'  ⚠️ POST-HOC FAILED for {key!r}: '
+                        _emit(f'  POST-HOC FAILED for {key!r}: '
                               f'{posthoc_errors[key]}  (the L2 above is '
                               f'unaffected and still valid)')
             except Exception as exc:                    # noqa: BLE001
@@ -1774,7 +1765,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
                 # error text goes into the return value, the summary and
                 # run_results.npz.
                 l2_errors[key] = f'{type(exc).__name__}: {exc}'
-                _emit(f'\n  ⚠️ L2 FAILED for {key!r}: {l2_errors[key]}')
+                _emit(f'\n  L2 FAILED for {key!r}: {l2_errors[key]}')
                 _emit('     The L1 maps are already saved in run_results.npz and '
                       'are unaffected.')
 
@@ -1786,7 +1777,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
                                                    len(posthoc_rows)),
                POSTHOC_FIELDS)
 
-    # ── REWRITE run_results.npz WITH THE L2 ROWS (atomic) ───────────────────
+    # -- REWRITE run_results.npz WITH THE L2 ROWS (atomic) -------------------
     payload['l2_rows_json'] = np.array(json.dumps(
         {m: _jsonable(r) for m, r in l2_by_model.items()}, allow_nan=False))
     payload['l2_errors_json'] = np.array(json.dumps(l2_errors, allow_nan=False))
@@ -1803,7 +1794,7 @@ def _run_one_grain(grain, sess_by_sub, p, data_dir, run_root, main,
     payload.update(_pack_l2_cells(l2_cells_by_key, l2_taxis_by_key))
     _save_npz_atomic(npz_path, payload)
 
-    # ── README + human summary ──────────────────────────────────────────────
+    # -- README + human summary ----------------------------------------------
     _write_summary(os.path.join(main, 'run_summary.txt'), p, data_dir,
                    run_root, main, session_records, subject_records,
                    l2_by_model, l2_errors, detected_by_model,
@@ -1832,7 +1823,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
     _check_extraction_params(p)
     grains = check_grains(p)
     pgrain = primary_grain(p)
-    # ── Covariate models need the per-segment covariates ───────────────────
+    # -- Covariate models need the per-segment covariates -------------------
     # Same discipline as KEEP_PERBEAT below: set it, and say so. Refusing would
     # make the covariate models impossible to ask for in one line; flipping it
     # silently would let a run's memory and content change without a record.
@@ -1843,7 +1834,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
         p['KEEP_SEGCOV'] = True
         if verbose:
             _emit('  KEEP_SEGCOV set True because MODELS includes '
-                  f'{_need_segcov} — session_measures must compute the '
+                  f'{_need_segcov} - session_measures must compute the '
                   'per-segment covariates. Cheap: a handful of floats per '
                   'segment, not per beat.')
     # 'cond' with no sapo segments is a constant column. INCLUDE_SAPO=False
@@ -1872,7 +1863,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
         # it, and let params_json record it as run.
         p['KEEP_PERBEAT'] = True
         if verbose:
-            _emit("  KEEP_PERBEAT set True because GRAINS includes 'perbeat' — "
+            _emit("  KEEP_PERBEAT set True because GRAINS includes 'perbeat' - "
                   'session_measures must keep the per-beat epochs. This costs '
                   'roughly 2-3 GB of RAM on the full cohort.')
 
@@ -1887,7 +1878,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
                            verbose)
     if verbose:
         _emit('=' * 92)
-        _emit(f'  HEART DEPTH RUNNER — '
+        _emit(f'  HEART DEPTH RUNNER - '
               f'{p.get("IC_SELECT_METHOD", "lee")} selection, '
               f'{"/".join(grains)} grain' + ('s' if len(grains) > 1 else ''))
         _emit('=' * 92)
@@ -1909,16 +1900,16 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
         _emit(f'  gates         MIN_DEPTHS={int(p["MIN_DEPTHS"])} (per session), '
               f'minSeg={int(p["minSeg"])} (pooled per subject), '
               f'MIN_BEATS_UNIT={int(p["MIN_BEATS_UNIT"])}')
-        _emit(f'  MIN_CONF      {int(p["MIN_CONF"])} — applied at EXTRACTION, not '
+        _emit(f'  MIN_CONF      {int(p["MIN_CONF"])} - applied at EXTRACTION, not '
               f'here; recorded so the tag is honest')
 
-    # ── COHORT ──────────────────────────────────────────────────────────────
+    # -- COHORT --------------------------------------------------------------
     sess_by_sub, session_records, subject_records = build_cohort(
         data_dir, p, limit=limit, verbose=verbose)
     _report_duration_proxy(p, session_records, verbose)
     n_sub, n_ses = print_accounting(session_records, subject_records, p, verbose)
 
-    # ── The per-beat memory, measured the moment it exists ──────────────────
+    # -- The per-beat memory, measured the moment it exists ------------------
     # Print the measured number, name the knob, and say what to drop: a number
     # in the log is what makes an out-of-memory death diagnosable afterwards
     # instead of a folder of cohort CSVs and no explanation.
@@ -1930,7 +1921,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
                   '(KEEP_PERBEAT). Drop it from GRAINS to run cell+segment only;'
                   ' those two need none of it.')
             if pb_bytes > 4e9:
-                _emit(f'    ⚠️ {pb_bytes / 1e9:.1f} GB is a large fraction of a '
+                _emit(f'    {pb_bytes / 1e9:.1f} GB is a large fraction of a '
                       f'machine with ~12 GB of RAM. If the kernel dies '
                       f'during L1 with no error, this is the first thing to '
                       f'suspect - the cell and segment grains run FIRST and '
@@ -1969,7 +1960,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
     if not sess_by_sub:
         # Still a complete, readable run folder: the accounting says why.
         write_readme(run_root, ARM, _describe(p), _params_for_record(p))
-        _emit('\n  NO SUBJECT SURVIVED THE COHORT GATES — L1/L2 not attempted. '
+        _emit('\n  NO SUBJECT SURVIVED THE COHORT GATES - L1/L2 not attempted. '
               'See cohort_subjects.csv.')
         return dict(run_root=run_root, main=main, method=method, tag=tag,
                     params=p, session_records=session_records,
@@ -1977,7 +1968,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
                     l2_errors={}, l2_skipped={}, detected={},
                     seconds=time.time() - t_start)
 
-    # ── ONE COMPLETE ANALYSIS PER GRAIN ────────────────────────────────
+    # -- ONE COMPLETE ANALYSIS PER GRAIN --------------------------------
     # A grain that throws must not take the others with it. Each grain is an
     # independent analysis writing an independent folder; losing one grain to a
     # bug must not discard another that already completed, and a grain that
@@ -1998,7 +1989,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
                     mains[g], 'RUN_FAILED_superseded_by_later_success.txt'))
         except Exception as exc:                     # noqa: BLE001
             grain_errors[g] = f'{type(exc).__name__}: {exc}'
-            _emit(f'\n  ⚠️ GRAIN {g!r} FAILED: {grain_errors[g]}')
+            _emit(f'\n  GRAIN {g!r} FAILED: {grain_errors[g]}')
             _emit('     The other grains are unaffected. This is a FAILURE, not '
                   'a null - nothing was tested at this grain.')
             # The failure also goes on disk, in that grain's own folder. Console
@@ -2101,7 +2092,7 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
     """
     l2_skipped = dict(l2_skipped or {})
     posthoc_errors = dict(posthoc_errors or {})
-    L = ['HEART DEPTH RUN — Python route', '=' * 78, '',
+    L = ['HEART DEPTH RUN - Python route', '=' * 78, '',
          f'data           {data_dir}',
          f'run root       {run_root}',
          f'main           {main}',
@@ -2114,11 +2105,11 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
          # absent table would read as a step that was skipped. See
          # GRAIN_MEASURES / GRAIN_SCHEMES for why each restriction exists.
          f'measures       {grain_measures(p, grain)}'
-         + (f'   ⚠️ NOT DEFINED at this grain: '
+         + (f'   NOT DEFINED at this grain: '
             f'{tuple(m for m in p["MEASURES"] if m not in grain_measures(p, grain))}'
             if len(grain_measures(p, grain)) != len(tuple(p['MEASURES'])) else ''),
          f'schemes        {grain_schemes(p, grain)}'
-         + (f'   ⚠️ NOT RUN at this grain: '
+         + (f'   NOT RUN at this grain: '
             f'{tuple(x for x in p["L2_SCHEMES"] if x not in grain_schemes(p, grain))}'
             if len(grain_schemes(p, grain)) != len(tuple(p['L2_SCHEMES'])) else ''),
          f'wall clock     {seconds:.1f} s', '',
@@ -2132,18 +2123,18 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
     # of the cohort was never opened, and the folder tag does not carry the
     # limit, so a smoke test lands in the same folder as a full run.
     if limit is not None:
-        L += [f'  ⚠️ --limit {limit}: ONLY THE FIRST {limit} SUBJECT(S) ON DISK '
+        L += [f'  --limit {limit}: ONLY THE FIRST {limit} SUBJECT(S) ON DISK '
               f'WERE EXAMINED.',
-              '     The rest were never opened — they are absent from this run, '
+              '     The rest were never opened - they are absent from this run, '
               'not dropped',
               '     by a gate, and they are NOT in cohort_subjects.csv. SMOKE '
               'TEST, not a cohort.',
-              '     ⚠️ The folder tag does not carry --limit, so this run '
+              '     The folder tag does not carry --limit, so this run '
               'sits where a full',
               '     run would sit.', '']
-    L += ['  ⚠️ MIN_SESSION_MIN was applied to a LOWER BOUND on the recording '
+    L += ['  MIN_SESSION_MIN was applied to a LOWER BOUND on the recording '
          'length', '     (max sample referenced by block_spans / seg_span), NOT '
-         'to the .set header', '     duration — extract_npz.py '
+         'to the .set header', '     duration - extract_npz.py '
          'never wrote it to the .npz.', '',
          '  DROPPED SESSIONS', '  ' + '-' * 76]
     dropped = [r for r in session_records if r['status'] != 'kept']
@@ -2169,7 +2160,7 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
               f'{r["n_seg_cond"]} segment(s), shortest window '
               f'{r["shortest_window_s"]} s' for r in short]
     else:
-        L += ['    (none — every analysed segment held the whole window)']
+        L += ['    (none - every analysed segment held the whole window)']
     L += ['', 'L2 DETECTION', '-' * 78]
     # One block per (L1 model x L2 window), keyed the way the L2 loop keys
     # them, so the 'lit' tables are named here and a 'lit' L2 that threw shows
@@ -2187,23 +2178,23 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
         prim = '  (PRIMARY)' if model == p['PRIMARY_MODEL'] else ''
         L.append(f'  model {model} / window {wname}{prim}')
         if key in l2_errors:
-            L.append(f'    ⚠️ L2 FAILED: {l2_errors[key]}')
+            L.append(f'    L2 FAILED: {l2_errors[key]}')
             L.append('       The L1 maps in run_results.npz are unaffected.')
             continue
         if key in l2_skipped:
-            L.append(f'    ⚠️ NOT RUN: {l2_skipped[key]}')
-            L.append('       This is a SKIP, not a null — nothing was tested.')
+            L.append(f'    NOT RUN: {l2_skipped[key]}')
+            L.append('       This is a SKIP, not a null - nothing was tested.')
             continue
         if key not in l2_by_model:
-            L.append('    ⚠️ NOT RUN: no result and no error was recorded for '
+            L.append('    NOT RUN: no result and no error was recorded for '
                      'this model x window.')
-            L.append('       This is a SKIP, not a null — nothing was tested.')
+            L.append('       This is a SKIP, not a null - nothing was tested.')
             continue
         det = detected.get(key, {})
         for meas, d in det.items():
             if d.get('sig'):
                 best = min(c['perm_p'] for c in d['clusters'])
-                cfa = ' ⚠️ CFA WINDOW' if any(c['CFA_flag'] for c in d['clusters']) else ''
+                cfa = ' CFA WINDOW' if any(c['CFA_flag'] for c in d['clusters']) else ''
                 L.append(f'    {meas.upper():5s} DETECTED ({d["scheme"]}, '
                          f'{len(d["clusters"])} cluster(s), best p={best:.4f}){cfa}')
             else:
@@ -2213,7 +2204,7 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
                 L.append(f'    {meas.upper():5s} none   (status: '
                          f'{", ".join(sorted(st)) or "?"})')
 
-    # ── WHAT RAN BESIDES THE MAIN L2, AND WHAT DID NOT ──────────────────────
+    # -- WHAT RAN BESIDES THE MAIN L2, AND WHAT DID NOT ----------------------
     # Both lists are derived from the parameters in force, so the summary cannot
     # contradict the run it summarises: it is the human record.
     posthoc_on = bool(p.get('POSTHOC', True))
@@ -2231,11 +2222,11 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
         'the %g-%g ms literature-window L2 -> l2_heart_summary_*_lit.csv '
         '(L2_WINDOWS=%s).' % (lit_ms(p)[0], lit_ms(p)[1], windows))
     notrun += [
-        'L1 designs beyond %s — subject_slopes implements no others.'
+        'L1 designs beyond %s - subject_slopes implements no others.'
         % (tuple(p['MODELS']),),
         # Derived from p['GRAINS'], never a literal, so the sentence stays true
         # as grains are added.
-        'grains other than %s — %s.'
+        'grains other than %s - %s.'
         % (', '.join(map(repr, tuple(p.get('GRAINS') or (grain,)))),
            ('; '.join(f'{g}: {why}' for g, why in GRAINS_NOT_PORTED.items())
             or 'no other grain exists')),
@@ -2250,14 +2241,14 @@ def _write_summary(path, p, data_dir, run_root, main, session_records,
         L += ['', 'POST-HOC FAILURES', '-' * 78]
         for key in sorted(posthoc_errors):
             m, w = _split_l2_key(key)
-            L.append(f'  model {m} / window {w}: ⚠️ {posthoc_errors[key]}')
+            L.append(f'  model {m} / window {w}: {posthoc_errors[key]}')
         L.append('  The L2 above is unaffected. A FAILED battery is not a null '
-                 'one — posthoc_summary.csv carries a row saying so.')
+                 'one - posthoc_summary.csv carries a row saying so.')
     L += ['', 'ALSO RUN IN THIS ROUTE', '-' * 78]
     L += [f'  * {s}' for s in ran] or ['  (nothing beyond the main L2)']
     L += ['', 'NOT RUN IN THIS ROUTE', '-' * 78]
     L += [f'  * {s}' for s in notrun]
-    L += ['  An ABSENT section folder means the step never ran — it is not a '
+    L += ['  An ABSENT section folder means the step never ran - it is not a '
           'null.', '']
     # The file is opened as UTF-8, so every glyph survives here even when the
     # console cannot carry it; _emit's degradation is for stdout only.

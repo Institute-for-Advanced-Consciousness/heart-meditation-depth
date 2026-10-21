@@ -87,7 +87,7 @@ from surrogate_rpeaks import (                      # noqa: E402
 
 SURR_ASSERT_TOL = 1e-6          # tolerance of the zero-shift integrity check
 
-# ── the statistic the null is built on ──────────────────────────────────────
+# -- the statistic the null is built on --------------------------------------
 # 'cluster' : the strongest cluster's |SumAbsT| from run_l2_heart (the default).
 # 'tfce'    : max |TFCE| over the tested window of the observed weighted t-map,
 #             Smith & Nichols TFCE (l2_tfce, convention 'sn', E .5, H 2, dh .1).
@@ -109,9 +109,9 @@ def _parse_stat(stat):
     raise ValueError(f'stat must be one of cluster / tfce / both, got {stat!r}')
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Refusal of sham-selected runs
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 def sham_selected(p):
     """(is_rigged, why): is this configuration's selection sham-normalised?"""
@@ -134,9 +134,9 @@ def sham_selected(p):
         f"would be informative.")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # The cohort, real and shifted
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 def capture_selection(sessions_by_subject):
     """{(subject, session): [ic indices]} from a real cohort build.
@@ -246,9 +246,9 @@ def _tfce_group(subs, g, ivw_measure, keep_inputs=False):
             for c in g['cells']}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # The control
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 def _cell_key(c):
     # The window is part of the cell's identity. A 'lit' cluster is a different test
@@ -302,7 +302,7 @@ def _window_axis(t_ax, f_ax, window, p):
     m = (t_ax >= lo) & (t_ax <= hi)
     if int(m.sum()) < 2:
         raise ValueError(
-            'window %r selects %d of %d point(s) on the TLIMS axis — the '
+            'window %r selects %d of %d point(s) on the TLIMS axis - the '
             'surrogate cannot be built on it.' % (window, int(m.sum()), t_ax.size))
     return m, t_ax[m]
 
@@ -357,7 +357,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
     if verbose:
         print(f'  epoch guard {guard} samples at fs={fs:g}')
 
-    # ── the real cohort, and the selection it made ──────────────────────────
+    # -- the real cohort, and the selection it made --------------------------
     t0 = time.time()
     p_real = dict(p)
     p_real.pop('SURROGATE_SHIFT', None)
@@ -389,7 +389,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
             'the REAL cohort kept no session, so there is nothing to control. '
             'Check the gates above.')
 
-    # ── the real statistic and the gate, per cell, from the one cohort ──────
+    # -- the real statistic and the gate, per cell, from the one cohort ------
     ivw_measure = str(p.get('L2_IVW_MEASURE', 'hep'))
     groups = _group_cells(cells, ivw_measure)
     # keyed (cell key, stat) from here on; survived[k] = any stat's gate passed
@@ -458,11 +458,11 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
                 k = _cell_key(c)
                 if st == 'cluster':
                     msg = ('SURVIVED' if gate[(k, st)]
-                           else 'no cluster — GATED OUT')
+                           else 'no cluster - GATED OUT')
                 else:
                     r = tfce_real[k]
                     msg = ('not testable (no maps / too few subjects / bad '
-                           'weights) — GATED OUT' if r is None else
+                           'weights) - GATED OUT' if r is None else
                            'TFCE L2 min p %.4g at nPerm %d: %s'
                            % (r['l2_min_p'], n_perm_tfce,
                               'SIGNIFICANT' if gate[(k, st)] else 'GATED OUT'))
@@ -502,7 +502,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
 
     if not gated:
         if verbose:
-            print('  nothing survived the real L2 — no draw is taken.')
+            print('  nothing survived the real L2 - no draw is taken.')
         return _ordered()
 
     gated_groups = _group_cells(gated)
@@ -513,7 +513,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
         _g['w_mask'] = groups[_k]['w_mask']
         _g['w_ax'] = groups[_k]['w_ax']
 
-    # ── integrity check: shift 0 must reproduce the real fit ────────────────
+    # -- integrity check: shift 0 must reproduce the real fit ----------------
     # One cohort pass, checked against every gated (grain, model, measure). The
     # property is cohort-level, but the comparison is per L1 fit, and a fit that the
     # pinned path did not reproduce would make its null equal the data and appear to
@@ -535,14 +535,14 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
                 f'SURROGATE INTEGRITY ASSERT FAILED: a shift of ZERO through '
                 f'the surrogate path did not reproduce the real L1 (max |diff| '
                 f'{worst:.3g} > {SURR_ASSERT_TOL:g}). Something in the pinned '
-                f'path is not the analysis it claims to reproduce — do NOT '
+                f'path is not the analysis it claims to reproduce - do NOT '
                 f'trust any surrogate null from this configuration.')
         if verbose:
             print(f'  integrity assert PASSED across {len(gated_groups)} '
                   f'(grain, model) fit(s) (max |diff| {worst:.2g} <= '
                   f'{SURR_ASSERT_TOL:g})')
 
-    # ── the null ────────────────────────────────────────────────────────────
+    # -- the null ------------------------------------------------------------
     # Every statistic of every gated cell is drawn, whichever gate let the cell in,
     # so under 'both' the two nulls rest on the same accepted draws; a statistic whose
     # own gate failed stays 'not tested' below.
@@ -555,7 +555,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
         if not ok:
             n_lost_draws += 1
             if verbose and k_draw == 1:
-                print(f'  draw {k_draw}: REJECTED — {n_bad} session(s) admit no '
+                print(f'  draw {k_draw}: REJECTED - {n_bad} session(s) admit no '
                       f'shift (limit {max_unshiftable:.0%}). The bound is the '
                       f'SEGMENT, not the recording; see _draw_shifts.')
             continue
@@ -571,7 +571,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
             n_lost_draws += 1
             if verbose:
                 print(f'  draw {k_draw}: cohort FAILED ({type(exc).__name__}: '
-                      f'{exc}) — the draw is dropped, not counted as a null')
+                      f'{exc}) - the draw is dropped, not counted as a null')
             continue
         got = {}
         for (grain, model, window), g in gated_groups.items():
@@ -606,7 +606,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
             n_lost_draws += 1
             if verbose:
                 print(f'  draw {k_draw}: incomplete ({len(got)}/{len(nulls)} '
-                      f'cells) — dropped so every cell keeps the same draws')
+                      f'cells) - dropped so every cell keeps the same draws')
             continue
         for k, v in got.items():
             nulls[k].append(float(v))
@@ -632,7 +632,7 @@ def run_surrogate_multi(data_dir, p, cells, n_surrogate=50, limit=None,
             # which would read as a clear failure of the control.
             results[(k, st)] = {
                 'tested': False,
-                'reason': 'no surrogate draw produced a usable null — every '
+                'reason': 'no surrogate draw produced a usable null - every '
                           'draw lost beats or failed. Widen SURR_SHIFT_MS, '
                           'raise --max-unshiftable, or check the guard.',
                 'real_stat': real_stat[(k, st)], 'p_surr': float('nan'),
@@ -738,9 +738,9 @@ def _draw_shifts(sbs, guard, fs, p, k, max_unshiftable=0.0):
     return shifts, drop, (frac <= max_unshiftable and bool(shifts)), n_bad
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # ENTRY POINT (called by run_component_group_tests.py with an argv list)
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[1])
@@ -757,7 +757,7 @@ def main(argv=None):
     # run shares the same cohort passes and the same shift draws, so the nulls are
     # comparable and the cost does not grow with the number of cells.
     ap.add_argument('--cells', default=None,
-                    help='JSON list of {grain, measure, model, scheme} — one '
+                    help='JSON list of {grain, measure, model, scheme} - one '
                          'control per entry, all sharing the same cohort passes '
                          'and the same shift draws. Overrides '
                          '--measure/--grain/--model/--scheme.')
@@ -913,7 +913,7 @@ def write_outputs(out, out_csv, run_tag, stats=('cluster',)):
                 res.get('n_sessions_dropped_mean', ''),
                 int(res['sham_selected']), res.get('reason', '')] + _xt)
     print('wrote', out_csv)
-    # ── the per-draw nulls, as their own file ──────────────────────────
+    # -- the per-draw nulls, as their own file --------------------------
     # `res['null']` holds every draw's statistic, but the summary CSV keeps
     # only median/max/count, so the null distribution is written here.
     # Row order is draw order. Rejected draws are skipped, so `Draw_index`
@@ -932,7 +932,7 @@ def write_outputs(out, out_csv, run_tag, stats=('cluster',)):
                             i, float(v)]
                            + ([res.get('stat', 'cluster')] if extra else []))
     print('wrote', nulls_csv)
-    # ── the per-cell TFCE p-maps ───────────────────────────────────────
+    # -- the per-cell TFCE p-maps ---------------------------------------
     # One key block per tested tfce cell, tag = grain__measure__model__
     # scheme__window. p_surr_map is the per-cell surrogate p (see
     # run_surrogate_multi); tfce_l2_p_map is the real TFCE L2's own FWE p
@@ -967,7 +967,7 @@ def _report(res):
     rather than as a cell that was never controlled.
     """
     if not res['tested']:
-        print('    NOT TESTED — ' + res.get('reason', ''))
+        print('    NOT TESTED - ' + res.get('reason', ''))
         return
     nl = res['null']
     med = float(np.median(nl))
@@ -988,10 +988,10 @@ def _report(res):
               % (_dmax, float(res.get('n_sessions_dropped_mean', 0) or 0)))
         print('       no shift in the permitted band. The null therefore rests '
               'on a slightly smaller')
-        print('       cohort than the real statistic — read the separation with '
+        print('       cohort than the real statistic - read the separation with '
               'that in mind.')
     if res['p_surr'] < 0.05:
-        print('    HEARTBEAT-LOCKED at this N — real is %s the median null'
+        print('    HEARTBEAT-LOCKED at this N - real is %s the median null'
               % ('%.2gx' % (res['real_stat'] / med) if med else 'above'))
         # At the floor the separation is the result, not the p. With N = 20 the
         # smallest attainable p_surr is .0476, so "p < .05" says only that no
@@ -1002,7 +1002,7 @@ def _report(res):
             print('       "no surrogate reached it in %d draws" is the '
                   'strongest statement this N permits.' % res['n_valid'])
     else:
-        print('    NOT distinguishable from ongoing activity — %d of %d '
+        print('    NOT distinguishable from ongoing activity - %d of %d '
               'shifted nulls'
               % (sum(1 for v in nl if v >= res['real_stat']), len(nl)))
         print('       reached the real statistic. A FAILURE is decisive at '

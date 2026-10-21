@@ -81,7 +81,7 @@ DEFAULT_BEH = os.environ.get('HMD_BEHAVIOUR',
                              os.path.join(os.path.dirname(_HERE), 'data', 'bids', 'phenotype'))
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _f(v):
     try:
         x = float(v)
@@ -326,7 +326,7 @@ def _write_outcomes_status(main_dir, grain, models_mode, status, n_cells=0):
     _write_csv(path, [keep[k] for k in sorted(keep)], fields)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def posthoc_one_grain(main_dir, beh_path, models_mode, verbose=True,
                       dry_run=False, only_window=None,
                       qrs_edge=QRS_EDGE_MS):
@@ -347,7 +347,7 @@ def posthoc_one_grain(main_dir, beh_path, models_mode, verbose=True,
     except (KeyError, ValueError):
         if not dry_run:
             _write_outcomes_status(main_dir, grain, models_mode,
-                                   'run_results.npz carries no L2 rows — the '
+                                   'run_results.npz carries no L2 rows - the '
                                    'L2 never completed for this grain')
         return {'status': 'no l2 rows', 'n_written': 0, 'cells': 0}
     sids = [str(s) for s in z['subject_ids']]
@@ -371,9 +371,9 @@ def posthoc_one_grain(main_dir, beh_path, models_mode, verbose=True,
         if not dry_run:
             _write_outcomes_status(
                 main_dir, grain, models_mode,
-                'RAN AND WAS GATED OUT: no cluster survived under --models %s%s'
-                ', so there is nothing to associate with an outcome. A MEASURED '
-                'null, not a skipped check.' % (models_mode, _wtxt))
+                'Ran, nothing to test: no cluster survived under --models %s%s'
+                ', so there is nothing to associate with an outcome (a tested '
+                'null, not a skipped check).' % (models_mode, _wtxt))
         return {'status': 'no surviving cluster under --models %s%s'
                           % (models_mode, _wtxt),
                 'n_written': 0, 'cells': 0}
@@ -389,7 +389,7 @@ def posthoc_one_grain(main_dir, beh_path, models_mode, verbose=True,
         if not dry_run:
             _write_outcomes_status(
                 main_dir, grain, models_mode,
-                'BEHAVIOURAL FILES MISSING (%s) — %d surviving cell(s) were '
+                'BEHAVIOURAL FILES MISSING (%s) - %d surviving cell(s) were '
                 'never tested. This is a data gap, NOT a null association.'
                 % (', '.join(missing), len(hits)), len(hits))
         return {'status': 'behavioural files missing: %s' % ', '.join(missing),
@@ -731,7 +731,7 @@ def posthoc_run(run_dir, beh_path, models_mode, verbose=True,
             if verbose:
                 print('  cascade: ALL FOUR LEVELS EMPTY -- %d cluster(s) '
                       'survived but none clears +%g ms, so there is nothing '
-                      'to run a post-hoc on. A MEASURED null.'
+                      'to run a post-hoc on (a tested null).'
                       % (v['n_survived'], float(qrs_edge)))
                 for _g, _m, _w, _r in v['demoted'][:6]:
                     print('    demoted: %-8s %-13s %-4s %s..%s ms'
@@ -849,9 +849,9 @@ def main(argv=None):
           % ('=' * 78, tot, len(runs),
              ' (dry run: nothing written)' if a.dry_run else '', '=' * 78))
     if tot == 0:
-        print('⚠️  Nothing was analysed. Under --models %s that means no cell '
+        print(' Nothing was analysed. Under --models %s that means no cell '
               'SURVIVED,' % a.models)
-        print('    not that the association was null — the battery is GATED on '
+        print('    not that the association was null - the battery is GATED on '
               'a surviving cluster')
         print('    and a forced fallback is how a null becomes a finding.')
         if a.models != 'both':

@@ -13,9 +13,9 @@ disagree with each other:
     * which cells get the post-hoc battery (`heart_posthoc`),
     * which cell the surrogate control tests.
 
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 THE CASCADE
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 Stop at the first level that finds something:
 
     1. main models      (session, unadj)   full window
@@ -27,9 +27,9 @@ It is a reporting rule, not a compute order. The L2 fits every model at both win
 one cohort load, and the cascade needs the lower levels to know they are empty: a level
 that was never fitted is not an empty level.
 
-═══════════════════════════════════════════════════════════════════════════
-A CFA-WINDOW CLUSTER CANNOT STOP THE CASCADE
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
+A cluster in the CFA window does not stop the cascade
+===========================================================================
 A cluster qualifies only if it survived and starts at or after `QRS_EDGE_MS` (+50 ms). A
 cluster reaching back before that is sitting on the QRS complex, and nothing in this arm
 clears it: `ecgAmp`/`ecgAmpT` are scalar per-beat R- and T-wave amplitudes, so they
@@ -46,9 +46,9 @@ the edge.
 A missing `Start_ms` does not qualify: a row with no bounds cannot be shown to clear the
 window.
 
-═══════════════════════════════════════════════════════════════════════════
-THE CASCADE IS PER RUN, POOLED ACROSS GRAINS
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
+The cascade is per run, pooled across grains
+===========================================================================
 The three grains belong to one configuration, so the run reports one level. Judging each
 grain separately would let the cell grain stop at level 1 while the segment grain
 reported a level-4 covariate: two answers to one question, and the weaker one would be

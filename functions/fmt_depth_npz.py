@@ -81,7 +81,7 @@ from session_length import session_duration_lowerbound_min
 print(f'Data: {DATA_DIR}')
 print(f'Results root: {RESULTS_ROOT}  (the run folder is named from PARAMS in Section 3)')
 
-# ── FIXED: COHORT + EXTRACTION. Not settings to change between runs. ────────
+# -- FIXED: COHORT + EXTRACTION. Not settings to change between runs. --------
 # These describe who is in the analysis and what is on disk. Sweeping them here would
 # create a differently named folder holding the same data cut a way it was never cut.
 # Section 3 merges them into PARAMS so they still reach the folder tag.
@@ -128,18 +128,18 @@ other and can be compared side by side. --set overrides any parameter here.
 PARAMS = dict(
     **COHORT,                # cohort + extraction gates, fixed in Section 2
 
-    # ══ CONDITION ══════════════════════════════════════════════════════════
+    # == CONDITION ==========================================================
     # False = the silent meditation blocks only (primary). True pools them with the
     # attention-probe blocks, roughly doubling the segments at the cost of auditory
     # stimulation. At False the `cond` model is not identified and is dropped; the
     # folder tag switches nosapo / nosapo+sapo, so the two do not overwrite each other.
     INCLUDE_SAPO=False,
 
-    # ══ WINDOW ═════════════════════════════════════════════════════════════
+    # == WINDOW =============================================================
     EPOCH_DUR=60,            # 30 / 45 / 60, sub-select from the 90 s        [R3]
     PRE_END=3,               # s excluded before the report; must be >= 2    [R3]
 
-    # ══ MEASURE ════════════════════════════════════════════════════════════
+    # == MEASURE ============================================================
     THETA_BP=[4, 8],
     # Scalp ROI (recorded channels only).
     FMT_ELECS=['fz', 'f1', 'f2', 'f3', 'f4',
@@ -156,7 +156,7 @@ PARAMS = dict(
     GED_MAX_COMP=1,
     STANDARDIZE_WITHIN_SESSION=True,
 
-    # ══ STATISTICS ═════════════════════════════════════════════════════════
+    # == STATISTICS =========================================================
     L1_METHOD='WLS',
     nPerm=1000,
     alpha=0.05,
@@ -184,7 +184,7 @@ for _kv in _args.overrides:
     print('  --set %s: %r -> %r' % (_k, PARAMS[_k], _val))
     PARAMS[_k] = _val
 
-# ── THE RUN'S OWN FOLDER, NAMED FROM ITS PARAMETERS ───────────────────────
+# -- THE RUN'S OWN FOLDER, NAMED FROM ITS PARAMETERS -----------------------
 # Every swept setting must reach this name, or the next run overwrites this one. Add a
 # swept parameter to result_path.fmt_depth_tag in the same edit. `P = PARAMS` is not
 # bound until later, so this block uses PARAMS.                                  [R7]
@@ -411,7 +411,7 @@ for subj_id, session_paths in all_sessions.items():
         if sensor_ch_names is None:
             sensor_ch_names = ch_names
         elif n_chan != len(sensor_ch_names):
-            print(f'  {subj_id} ses{i_ses}: {n_chan} ch != ref {len(sensor_ch_names)} — skip')
+            print(f'  {subj_id} ses{i_ses}: {n_chan} ch != ref {len(sensor_ch_names)} - skip')
             continue
 
         if n_seg == 0:
@@ -427,7 +427,7 @@ for subj_id, session_paths in all_sessions.items():
         # EXTRACT_PRE_END (2) is a different quantity: what the extractor cut, not what
         # the analysis asks for. PRE_END >= EXTRACT_PRE_END is required and is checked
         # below.
-        # ── GEOMETRY IS READ FROM THE FILE, NOT ASSUMED ──────────────────
+        # -- GEOMETRY IS READ FROM THE FILE, NOT ASSUMED ------------------
         # A re-extraction at different values would otherwise cut a different window
         # out of every segment, with nothing in the run to show it. The module
         # constants are only the fallback for files without the keys, and taking that
@@ -438,7 +438,7 @@ for subj_id, session_paths in all_sessions.items():
             ex_dur = EXTRACT_EPOCH_DUR if ex_dur is None else ex_dur
             ex_pre = EXTRACT_PRE_END if ex_pre is None else ex_pre
             print(f'  {subj_id} ses{i_ses}: .npz predates the extraction-geometry '
-                  f'keys — ASSUMING {ex_dur:g} s / pre_end {ex_pre:g} s. '
+                  f'keys - ASSUMING {ex_dur:g} s / pre_end {ex_pre:g} s. '
                   f'Re-extract to remove the assumption.')
 
         # The file's own rate, not the module default (which is only a default).
@@ -493,7 +493,7 @@ for subj_id, session_paths in all_sessions.items():
             continue
         idx = np.where(usable)[0]
 
-        # ── RESOLVE OVERLAPS AT THE *ANALYSIS* DURATION ──────────────────
+        # -- RESOLVE OVERLAPS AT THE *ANALYSIS* DURATION ------------------
         # extract_npz writes `overlap_resolved=False`: it does not trim at its own 90 s,
         # which would discard seconds a 60 s analysis is entitled to, so the consumer
         # resolves overlaps. Two analysis windows that overlap share samples, and
@@ -511,7 +511,7 @@ for subj_id, session_paths in all_sessions.items():
         if ov_flag is None:
             ov_flag = True
             print(f'  {subj_id} ses{i_ses}: .npz predates the overlap-provenance '
-                  f'key — ASSUMING it was resolved at extraction.')
+                  f'key - ASSUMING it was resolved at extraction.')
         n_overlap = 0
         if not ov_flag and idx.size > 1:
             span_all = np.asarray(sess['seg_span'])
@@ -533,7 +533,7 @@ for subj_id, session_paths in all_sessions.items():
                 idx = np.asarray(sorted(set(int(v) for v in idx) - set(drop)),
                                  dtype=int)
                 print(f'  {subj_id} ses{i_ses}: {n_overlap} analysis window(s) '
-                      f'OVERLAP at {P["EPOCH_DUR"]:g} s — the earlier of each pair '
+                      f'OVERLAP at {P["EPOCH_DUR"]:g} s - the earlier of each pair '
                       f'is dropped')
                 if idx.size == 0:
                     continue
@@ -583,7 +583,7 @@ for subj_id, session_paths in all_sessions.items():
 
         # Gate: MIN_DEPTHS per session
         if len(np.unique(depth)) < P['MIN_DEPTHS']:
-            print(f'    {subj_id} ses{i_ses}: {len(np.unique(depth))} depths < {P["MIN_DEPTHS"]} — skip')
+            print(f'    {subj_id} ses{i_ses}: {len(np.unique(depth))} depths < {P["MIN_DEPTHS"]} - skip')
             continue
 
         # --- Theta filter ---
@@ -748,7 +748,7 @@ for subj_id, session_paths in all_sessions.items():
             ged[m] = zscore_omitnan(ged[m])
 
     if np.sum(np.isfinite(scalp)) < P['minSeg']:
-        print(f'  {subj_id}: {np.sum(np.isfinite(scalp))} segs < minSeg — skip')
+        print(f'  {subj_id}: {np.sum(np.isfinite(scalp))} segs < minSeg - skip')
         continue
 
     SEG_DEPTH.append(depth)
@@ -1189,9 +1189,9 @@ sig_scalp, sig_ged = sig_meas
 print(f'  DETECTED: scalp={"YES ("+sig_sch[0]+")" if sig_scalp else "none"}, '
       f'GED={"YES ("+sig_sch[1]+")" if sig_ged else "none"}')
 
-# ══════════════════════════════════════════════════════════════════════════
+# ==========================================================================
 # THE POST-HOC BATTERY: GATED, AND SCOPED TO THE DETECTED EFFECT
-# ══════════════════════════════════════════════════════════════════════════
+# ==========================================================================
 # One post-hoc set per detected measure. Within a measure the scope is fixed:
 #
 #   model  = 'unadj' only. The covariate models (reportmethod, cond) are adjustments
@@ -1498,7 +1498,7 @@ markers there.
   and in SIG_PRIORITY), a measure significant only under ivw_shrunk is detected too.
 
 -----------------------------------------------------------------------------
-[R7] EVERY SWEPT SETTING MUST REACH THE FOLDER TAG
+[R7] Every swept setting must reach the folder tag
   A setting that is swept but missing from fmt_depth_tag means the next run overwrites
   this one and the difference is invisible afterwards. If you add a parameter and sweep
   it, add it to result_path.fmt_depth_tag in the same edit. `P = PARAMS` is not bound

@@ -184,7 +184,7 @@ def cell_ols(Yunits, dep, sesD=None, covC=None, ok=None, method='OLS',
         cols.append(np.asarray(covC, float)[ok])
     X = np.hstack(cols)
     nP = X.shape[1]
-    # ── Column scaling: without it the ridge below deletes small columns ─────
+    # -- Column scaling: without it the ridge below deletes small columns -----
     # `_ridge_inv` adds `lam * trace(A)` to every diagonal entry, so the ridge is only
     # "tiny" relative to the largest column in the design. A column whose scale sits far
     # below the O(1) intercept / depth / session columns would be annihilated by it. The
@@ -263,7 +263,7 @@ def cell_ols(Yunits, dep, sesD=None, covC=None, ok=None, method='OLS',
                 if v is not None:
                     svar = v
 
-    # ── Un-scale: back to the caller's units ─────────────────────────────────
+    # -- Un-scale: back to the caller's units ---------------------------------
     # X = Xn @ diag(xsc), so B_j = Bn_j / xsc_j exactly, and the variance of the
     # target coefficient carries its own column's square. This holds for the
     # model-based svar (MSE * iXtWX[tc,tc]) and for the CRVE alike: the CRVE's

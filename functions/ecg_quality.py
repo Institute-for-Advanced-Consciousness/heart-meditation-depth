@@ -54,16 +54,16 @@ class EcgQualityError(ValueError):
     """
 
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# -- Constants -----------------------------------------------------------------
 # Maximum fraction of detected R-peaks rejected by RR cleaning (subject gate).
 ECG_MAX_DEFAULT = 0.2
 # Inter-beat intervals shorter than this (ms) count as short.
 MIN_IBI_MS_DEFAULT = 600.0
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # Input check, where MATLAB and numpy genuinely disagree
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 
 def _as_finite_1d(v, what):
@@ -82,9 +82,9 @@ def _as_finite_1d(v, what):
     return a
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # 1. The clean ratio: the quantity the subject gate reads
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 class CleanRatio:
     """`clean_ratio_segments` output: the ratio plus the two counts behind it.
@@ -142,7 +142,7 @@ def clean_ratio_segments(rpeaks_all, rpeaks_clean, spans=None):
     if s.ndim != 2 or s.shape[1] != 2:
         raise EcgQualityError(
             f'clean_ratio_segments: spans must be (nSeg, 2), got shape {s.shape}. '
-            f'MATLAB v7.3 arrays read back from h5py TRANSPOSED — a (2, nSeg) '
+            f'MATLAB v7.3 arrays read back from h5py TRANSPOSED - a (2, nSeg) '
             f'block_spans needs .T.')
     if not np.all(np.isfinite(s)):
         raise EcgQualityError(
@@ -170,9 +170,9 @@ def clean_ratio_segments(rpeaks_all, rpeaks_clean, spans=None):
     return CleanRatio(1.0 - n_kept / n_all, n_all, n_kept, 'segments')
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # 2. The subject gate and the short-IBI diagnostic
-# ═════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def ecg_ratio_passes_gate(ratio, ecg_max=ECG_MAX_DEFAULT):
     """`ratio <= ecgMax`, with NaN failing. The one gate spelling used in this module.

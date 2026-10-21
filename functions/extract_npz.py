@@ -223,7 +223,7 @@ def _rpeak_scope_windows(annotations, sfreq, n_pts, include_sapo=True,
     return out
 
 
-# ── OLDER RATING MARKER FORMAT (two participants) ────────────────────────────
+# -- OLDER RATING MARKER FORMAT (two participants) ----------------------------
 # Two participants were recorded with a task build that wrote depth reports without the block
 # name in the label:
 #
@@ -451,7 +451,7 @@ def extract_epochs(annotations, sfreq, n_total_samples, condition,
     depth = depth[good]
     subconds = [s for s, g in zip(subconds, good) if g]
 
-    # ── Overlap resolution, off by default ──────────────────────────────────
+    # -- Overlap resolution, off by default ----------------------------------
     # Resolving here would throw away data the analysis needs. This function cuts EPOCH_DUR
     # (90 s) before each report, but the analysis uses only its own EPOCH_DUR + PRE_END. Two
     # reports 70 s apart overlap at 90 s but not at 60 s, so trimming here would discard
@@ -593,7 +593,7 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         if to_drop and icachansind.max() >= n_chan:
             raise ValueError(
                 f'icachansind max {icachansind.max()} >= n_chan {n_chan} after '
-                f'dropping {to_drop} — channel indices have shifted. Do not trust '
+                f'dropping {to_drop} - channel indices have shifted. Do not trust '
                 f'this export; fix the drop order before re-running.')
     except Exception as e:
         print(f'    WARNING: Could not read ICA weights ({e})')
@@ -652,10 +652,10 @@ def extract_session(data_path, output_dir, subject_id, session_num):
           f'pre-med={np.sum(cond==2)}, post-med={np.sum(cond==3)})')
 
     if n_seg == 0:
-        print(f'    No segments — skipping session')
+        print(f'    No segments - skipping session')
         return False
 
-    # Extract EEG data for each segment (variable length → store as array of arrays)
+    # Extract EEG data for each segment (variable length -> store as array of arrays)
     seg_eeg = []
     seg_ecg = []
     seg_resp = []
@@ -683,7 +683,7 @@ def extract_session(data_path, output_dir, subject_id, session_num):
                                   'resp': np.empty((0, PERIOD_WIN_DUR * fs), dtype=np.float32),
                                   'n_windows': 0}
         else:
-            # All windows are fixed length → stack into 3D array
+            # All windows are fixed length -> stack into 3D array
             win_samp = PERIOD_WIN_DUR * fs
             per_eeg = np.zeros((len(pwins), n_chan, win_samp), dtype=np.float32)
             per_ecg = np.zeros((len(pwins), win_samp), dtype=np.float32)
@@ -712,7 +712,7 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         tot = (block_spans[:, 1] - block_spans[:, 0]).sum() / fs / 60
         detail = ', '.join(f"{r['base']}[{r['source']}]" for r in scope)
         print(f'    Meditation blocks: {len(block_spans)} span(s), {tot:.1f} min total '
-              f'({tot/(n_pts/fs/60)*100:.0f}% of the recording) — {detail}')
+              f'({tot/(n_pts/fs/60)*100:.0f}% of the recording) - {detail}')
     else:
         # Only reachable if the recording holds neither a block marker nor a single depth
         # report, which is an acquisition failure, not a marker-naming one.
@@ -745,7 +745,7 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         'subject_id': subject_id,
         'session': session_num,
         'fs': fs,
-        # ── Provenance: the geometry of what is in this file ──────────────────
+        # -- Provenance: the geometry of what is in this file ------------------
         # Written so a consumer never has to assume the extraction settings.
         # `overlap_resolved` matters most: when False the stored segments may overlap and the
         # analysis must resolve them at its own EPOCH_DUR + PRE_END. A reader that cannot
@@ -786,7 +786,7 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         'block_spans': block_spans,
         'block_names': np.array(block_names, dtype=object),
         'block_sources': np.array(block_sources, dtype=object),
-        # Periods (fixed-length windows → 3D arrays)
+        # Periods (fixed-length windows -> 3D arrays)
     }
 
     for pname in PERIOD_NAMES:
@@ -878,7 +878,7 @@ def main():
             out_file = os.path.join(OUTPUT_DIR, subj_id, f'ses{ses}.npz')
             if os.path.exists(out_file) and not force:
                 print(f'[{i_sub+1}/{n_sub}] {subj_id} ses{ses}: already extracted '
-                      f'({os.path.getsize(out_file)/1e6:.0f} MB) — skip')
+                      f'({os.path.getsize(out_file)/1e6:.0f} MB) - skip')
                 n_resumed += 1
                 continue
             print(f'[{i_sub+1}/{n_sub}] {subj_id} ses{ses}:')

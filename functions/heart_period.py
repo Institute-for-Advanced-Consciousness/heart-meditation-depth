@@ -14,17 +14,17 @@ Uses `heart_core` (reconstruct_ics, epoch_beats, morlet_cwt, ppc_map, hep_averag
 `l2_heart.run_l2_heart` for the group stage, and reads the periods from the segment files
 (data/segments/<subject>/ses<N>.npz, config.DATA_DIR).
 
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 FOUR PERIODS, SIX CONTRASTS
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
     baseline · pre-meditation · post-meditation · active-oddball
 
 `delta = mean(B) - mean(A)`, A the reference. Six contrasts over four means carry three df
 between them, and nothing corrects across them.
 
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 HOW THIS DIFFERS FROM A DEPTH RUN
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 1. The unit is a beat, not a segment. A period is one continuous block, so there is no
    segment/cell/perbeat grain to choose: one map per (period, session), pooled over sessions,
    then differenced.
@@ -68,7 +68,7 @@ from fmt_period import period_block, contrasts_of  # noqa: E402
 CONFIG = dict(
     IC_SELECT_METHOD='lee',            # functional selection; the only method
     SELECT_ON=['baseline', 'pre-meditation'],   # periods selection runs on; never the contrast
-    # ── lee selection knobs, passed to select_ics_lee ──────────────────────
+    # -- lee selection knobs, passed to select_ics_lee ----------------------
     HRSP_SEL_CRITERION='hrsp',         # 'hrsp' (power) | 'ppc' (phase)
     IC_SEL_NORM='raw',                 # 'raw'|'ztrial'|'sham'|'sham_raw'|'blratio'
     IC_SEL_THRESH=1.0,                 # 1 = single best IC; <1 averages more
@@ -140,7 +140,7 @@ def period_measures(eeg_ic, ecg, fs, p, pol=1, notes=None):
     """
     notes = {} if notes is None else notes
     n = int(eeg_ic.size)
-    # ── R-peaks on the re-joined block ─────────────────────────────────────
+    # -- R-peaks on the re-joined block -------------------------------------
     try:
         pk, _ = get_rr(pol * np.asarray(ecg, float), fs, polarity=1,
                        drop_first=False)
@@ -616,7 +616,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
             # over maps that already exist, so no extra sessions are read for it.
             per_period[sid] = pool_periods(got, p)
 
-    # ── L2: the same cluster-permutation stage as the depth analysis ────────
+    # -- L2: the same cluster-permutation stage as the depth analysis --------
     # The folder tag carries the lee knobs, or two runs that differ only in them (e.g. 1IC
     # against 0.8IC) would share one folder and the second would overwrite the first.
     _seltag = 'lee-%s-%s-%gIC' % (p['HRSP_SEL_CRITERION'], p['IC_SEL_NORM'],
@@ -644,7 +644,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
                 subjects.append(entry)
         if len(subjects) < 3:
             if verbose:
-                print('  %-24s SKIPPED — %d subject(s) have the pair'
+                print('  %-24s SKIPPED - %d subject(s) have the pair'
                       % (ctag, len(subjects)))
             continue
         n_t = next(len(s[m][0]) if np.ndim(s[m][0]) == 1 else s[m][0].shape[-1]
@@ -710,7 +710,7 @@ def run(data_dir, results_root, p=None, limit=None, verbose=True):
         kept = sum(1 for r in records if r['status'] == 'kept')
         print('\n  %d subject(s), %d session(s) kept, %d dropped'
               % (len(per_sub), kept, len(records) - kept))
-        print('  ⚠️ %d contrasts, UNCORRECTED across them (3 df between six)'
+        print('  %d contrasts, UNCORRECTED across them (3 df between six)'
               % len(contrasts_of(p)))
         print('  -> %s' % out_dir)
     return {'rows': all_rows, 'records': records, 'out_dir': out_dir}

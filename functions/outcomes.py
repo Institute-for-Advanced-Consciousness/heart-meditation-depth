@@ -151,9 +151,9 @@ def participants_file(beh_path):
     return os.path.join(os.path.dirname(os.path.abspath(beh_path)), PARTICIPANTS_TSV)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # STATISTICS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def fdr_bh(p):
     """Benjamini-Hochberg adjusted p values. A NaN p stays NaN and is not counted in m."""
     p = np.asarray(p, float)
@@ -219,9 +219,9 @@ def _num(v):
     return f
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # LOADERS
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def load_outcomes_by_session(beh_path, record_ids):
     """([nSub x 2 x N] outcomes, one value per session, missing, gaps).
 
@@ -340,9 +340,9 @@ def load_demographics(beh_path, record_ids):
     return D, [l for _c, l in DEMOG_SPEC], covered
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # TABLES
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def spearman_ols_table(pred_z, Y, floor):
     """Per-outcome Spearman (primary) + OLS (secondary), with both FDRs."""
     from scipy.stats import spearmanr

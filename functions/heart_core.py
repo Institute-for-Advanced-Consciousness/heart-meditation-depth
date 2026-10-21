@@ -104,9 +104,9 @@ def morlet_kernels(freqs, fs, width=5.0):
     return kernels, zero_idx
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # FFT backend
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # scipy.fft with next_fast_len is about 2-2.7x faster end to end through morlet_cwt than
 # numpy.fft with a power-of-two length, on shapes up to 60 signals x 45 min x 5
 # frequencies (the shape of the Lee selector's pooled CWT, the dominant cost of a `lee`

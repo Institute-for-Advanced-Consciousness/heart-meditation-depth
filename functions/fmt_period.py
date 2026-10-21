@@ -12,9 +12,9 @@ Reuses fmt_depth_pipeline (`build_ged`, which builds its template with
 `make_frontal_template`, `signflip_ttest` and `shrunk_ivw`) and reads the periods from the
 segment .npz files, which carry them.
 
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 WHAT IT COMPARES
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 Four periods per session:
 
     baseline          resting, eyes-open
@@ -27,9 +27,9 @@ means have only three degrees of freedom between them, and nothing here corrects
 them. Read the pre-registered ones (`premed_vs_baseline`, `oddball_vs_baseline`,
 `postmed_vs_premed`) and treat the rest as description.
 
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 FILTERING
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 The .npz stores each period already cut into non-overlapping 4 s windows. Filtering each
 window on its own would put the FIR transient inside every window, a large fraction of a
 4 s window at 5-8 Hz. `extract_period_windows` steps `pos += win_samp` with no gap, so
@@ -42,9 +42,9 @@ not record which span a window came from: at most (n_spans - 1) discontinuities 
 period, each costing the filter about 1 s of transient out of several hundred seconds.
 The window count of each period is recorded so a short period is visible.
 
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
 THE MEASURES
-═══════════════════════════════════════════════════════════════════════════
+===========================================================================
   FMT_scalp   mean log10 theta power over FMT_ELECS (Brandmeyer & Delorme 2018)
   FMT_GED     GED spatial filter maximising theta / broadband variance, selected
               by template match, trained on the GED_TRAIN_ON periods only and
@@ -76,9 +76,9 @@ for _s in (sys.stdout, sys.stderr):
 
 from fmt_depth_pipeline import build_ged, signflip_ttest, shrunk_ivw
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 #                              ↓↓  CONFIG  ↓↓
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 CONFIG = dict(
     THETA_BP=[5, 8],              # Hz, Brandmeyer & Delorme's band
     FMT_ELECS=['Fz', 'FCz', 'Cz', 'AFz', 'F1', 'F2', 'FC1', 'FC2'],
@@ -97,7 +97,7 @@ CONFIG = dict(
     ALPHA=0.05,
     SCHEMES=['unweighted', 'precision_nwin'],
 )
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 # Ordered (A = reference, B = test) so `delta = mean(B) - mean(A)` has a
 # stable sign. Reversing a pair flips every number in its row.
@@ -194,7 +194,7 @@ def session_periods(npz_path, p, verbose=True):
     ch_pos = np.asarray(z['ch_positions'], float)
     notes = {'subject': str(z['subject_id']), 'session': int(z['session'])}
 
-    # ── the scalp electrode set, and what is actually there ────────────────
+    # -- the scalp electrode set, and what is actually there ----------------
     want = [c.lower() for c in p['FMT_ELECS']]
     ix = [i for i, c in enumerate(ch_names) if c.lower() in want]
     missing = [c for c in p['FMT_ELECS'] if c.lower()
@@ -206,7 +206,7 @@ def session_periods(npz_path, p, verbose=True):
                                 'recording' % (p['FMT_ELECS'],))
         return None, notes
 
-    # ── filter each period once, on the re-joined block ────────────────────
+    # -- filter each period once, on the re-joined block --------------------
     blocks, filt = {}, {}
     for per in p['PERIODS']:
         blk, n_win, win_samp = period_block(z, per)
@@ -223,7 +223,7 @@ def session_periods(npz_path, p, verbose=True):
         notes['skip_reason'] = 'no period met MIN_WINDOWS'
         return None, notes
 
-    # ── the GED filter: trained on the reference periods only ──────────────
+    # -- the GED filter: trained on the reference periods only --------------
     train = [q for q in p['GED_TRAIN_ON'] if q in filt]
     ged = {'ok': False}
     if train:
@@ -261,7 +261,7 @@ def session_periods(npz_path, p, verbose=True):
             rec['ged'] = np.full(n_win, np.nan)
         out[per] = rec
 
-    # ── z-score within session, across every period at once ────────────────
+    # -- z-score within session, across every period at once ----------------
     # Pooled across periods on purpose: standardising each period separately would
     # set every period's mean to 0 and delete the contrast. This removes the
     # per-session GED scale and the recording day.
@@ -299,7 +299,7 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
                            reason=notes.get('skip_reason', 'unknown'))
                 records.append(rec)
                 if verbose:
-                    print('  %s %s DROPPED — %s' % (sid, f, rec['reason']))
+                    print('  %s %s DROPPED - %s' % (sid, f, rec['reason']))
                 continue
             rec['periods'] = ','.join('%s:%d' % (q, res[q]['n']) for q in res)
             records.append(rec)
@@ -308,7 +308,7 @@ def build_cohort(data_dir, p, limit=None, verbose=True):
                     acc.setdefault((q, meas), []).append(
                         (np.nanmean(v[meas]), v['n']))
             if verbose:
-                print('  %s %s kept — %s%s' % (
+                print('  %s %s kept - %s%s' % (
                     sid, f, rec['periods'],
                     '' if notes.get('ged_ok') else '  (no GED component)'))
         if acc:

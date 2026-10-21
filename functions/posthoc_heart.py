@@ -52,9 +52,9 @@ SEED_POSTHOC = 20260821
 MIN_LEVELS_FOR_RHO = 3      # rho over 2 points is always +-1, so uninformative
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # CLUSTER EXTRACTION
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def cluster_cell_mask(cells, n_freq, n_time):
     """[n x 2] (freq_idx, time_idx) -> [nF x nT] bool mask."""
     m = np.zeros((int(n_freq), int(n_time)), bool)
@@ -121,9 +121,9 @@ def unit_cluster_values(sessions, measure, mask, t_keep, grain='segment', p=None
     return np.asarray(vals, float), np.asarray(deps, int), np.asarray(subs, object)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # MONOTONICITY
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _spearman(x, y):
     """Spearman rho without scipy (ties averaged), NaN if undefined."""
     x = np.asarray(x, float); y = np.asarray(y, float)
@@ -188,9 +188,9 @@ def monotonicity_check(depth, values, subject):
         n_skipped=int(skipped))
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # LOSO
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 def _signflip_p(v, w, n_perm, rng):
     """Weighted one-sample sign-flip p for a vector of per-subject values."""
     v = np.asarray(v, float); w = np.asarray(w, float)
@@ -243,9 +243,9 @@ def loso_influence(betas, weights=None, n_perm=1000, seed=SEED_POSTHOC):
                 n_subjects=int(n), all_p=all_p)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # THE GATED BATTERY
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 POSTHOC_FIELDS = ('Model', 'Window', 'Measure', 'Scheme', 'Cluster',
                   'N_cells', 'Start_ms', 'End_ms',
                   'Rho_median', 'N_monotone', 'N_subjects_mono', 'Frac_monotone',
@@ -287,7 +287,7 @@ def run_posthocs(sessions_by_subject, subjects, l2_rows, detected, p,
     rows = []
     if not detected or not any(detected.values()):
         if verbose:
-            emit('  no detected effect — the post-hoc battery is SKIPPED by '
+            emit('  no detected effect - the post-hoc battery is SKIPPED by '
                  'design (a post-hoc runs only on an effect that survived the '
                  'main model).')
         return rows
@@ -298,20 +298,20 @@ def run_posthocs(sessions_by_subject, subjects, l2_rows, detected, p,
     _pairs = [(m, sch) for m, schs in sorted(detected.items()) for sch in schs]
     for meas in sorted(detected):
         if not detected[meas] and verbose:
-            emit(f'  {meas}: not detected — skipped.')
+            emit(f'  {meas}: not detected - skipped.')
     for meas, scheme in _pairs:
         key = (meas, scheme)
         cl = (clusters_by_key or {}).get(key)
         if not cl:
             rows.append(dict.fromkeys(POSTHOC_FIELDS, ''))
             rows[-1].update(Measure=meas, Scheme=scheme,
-                            Note='DETECTED but no cluster cells were supplied — '
+                            Note='DETECTED but no cluster cells were supplied - '
                                  'post-hocs could not be run on the exact '
                                  'cluster and were NOT approximated by its '
                                  'bounding box')
             if verbose:
                 emit(f'  {meas}/{scheme}: detected but no cluster cells '
-                     f'supplied — post-hocs NOT run (not approximated).')
+                     f'supplied - post-hocs NOT run (not approximated).')
             continue
 
         # Surviving clusters only. `clusters_by_key` is the raw cluster list: every
@@ -331,10 +331,10 @@ def run_posthocs(sessions_by_subject, subjects, l2_rows, detected, p,
                 Measure=meas, Scheme=scheme,
                 Note='DETECTED at this scheme but no cluster of it is below '
                      'alpha=%g, so there is no surviving cluster to run a '
-                     'post-hoc on. NOT a null post-hoc — nothing was tested.'
+                     'post-hoc on. NOT a null post-hoc - nothing was tested.'
                      % _alpha)
             if verbose:
-                emit(f'  {meas}/{scheme}: no cluster below alpha — post-hocs '
+                emit(f'  {meas}/{scheme}: no cluster below alpha - post-hocs '
                      f'not run on non-surviving blobs.')
             continue
         if verbose and len(_surv) < len(cl):
