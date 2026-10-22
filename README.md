@@ -148,8 +148,7 @@ Where the paper's tables come from:
 | Supplementary Table 2 | `results/component/HEART_DEPTH/<primary setting>/viability_subsets.csv` |
 | Supplementary Table 3 | `results/associations/outcome_skipped_correlations.csv` |
 | Supplementary Table 4 | `results/component/HEART_DEPTH/<primary setting>/perbeat_wise/outcomes_demographics_tfce/*_demographics.csv` (the other tables in that folder are not reported) |
-| Supplementary Table 5 | `results/fmt/fmt_outcome_skipped_correlations.csv` |
-| Supplementary Table 6 | `results/periods/HEART_PERIOD/<run>/period_tfce_all.csv` |
+| Supplementary Table 5 | `results/periods/HEART_PERIOD/<run>/period_tfce_all.csv` |
 
 The primary setting's folder is `lee-hrsp-raw_1IC_dur60_bl_nosapo` (selection by the method of
 Lee et al., 2024, on raw HRSP; one component; 60 s windows; baseline correction; silent blocks).
