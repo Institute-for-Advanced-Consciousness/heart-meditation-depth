@@ -50,21 +50,25 @@ SCALP = dict(
     ALPHA=0.05,
     nPerm=500,                      # the pipeline's own cluster test, not reported
 )
-# The eight settings: window length x baseline correction x block set.
+# The nine settings: window length (60 or 45 s) x baseline correction x block set, and 30 s
+# windows with baseline correction in the silent blocks, as in the component analysis.
 SCALP_SETTINGS = {
     'dur%d_%s_%s' % (dur, 'bl' if bl else 'nobl', 'pooled' if sapo else 'silent'):
         dict(SCALP, EPOCH_DUR=dur, DO_BASELINE_CORRECT=bl, INCLUDE_SAPO=sapo)
     for sapo in (False, True) for dur in (60, 45) for bl in (True, False)
 }
+SCALP_SETTINGS['dur30_bl_silent'] = dict(SCALP, EPOCH_DUR=30, DO_BASELINE_CORRECT=True,
+                                         INCLUDE_SAPO=False)
 SCALP_ROOT = os.path.join(RESULTS_DIR, 'scalp')
 # Group test: weighted TFCE over channel x frequency x time. 5,000 permutations for the
-# 60 s silent settings and the 45 s silent setting with baseline correction, 1,000 for the
-# other five.
+# 60 s silent settings and the 45 s and 30 s silent settings with baseline correction, 1,000
+# for the other five.
 SCALP_TFCE = dict(
     scheme='ivw_own',
     measures=('hrsp', 'hep', 'hepc'),
     models=('session',),
-    nperm={name: (5000 if name in ('dur60_bl_silent', 'dur60_nobl_silent', 'dur45_bl_silent')
+    nperm={name: (5000 if name in ('dur60_bl_silent', 'dur60_nobl_silent', 'dur45_bl_silent',
+                                   'dur30_bl_silent')
                   else 1000) for name in SCALP_SETTINGS},
 )
 
@@ -191,6 +195,8 @@ FMT_DEPTH = dict(
 FMT_DEPTH_SETTINGS = {
     'silent': dict(FMT_DEPTH, INCLUDE_SAPO=False),
     'pooled': dict(FMT_DEPTH, INCLUDE_SAPO=True),
+    # window-length check, as for the heartbeat-related analyses
+    'silent_dur30': dict(FMT_DEPTH, INCLUDE_SAPO=False, EPOCH_DUR=30),
 }
 FMT_ROOT = os.path.join(RESULTS_DIR, 'fmt')
 # Self-report associations of the theta depth slope, with the method of ASSOCIATIONS below.

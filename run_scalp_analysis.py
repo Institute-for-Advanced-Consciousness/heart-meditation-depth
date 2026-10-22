@@ -3,11 +3,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Analysis 1: HEP, HRSP and HRPC at all 64 electrodes, with no component selection.
 
-  fit    participant-level depth slopes at every channel, for the eight settings of
-         config.SCALP_SETTINGS (window length x baseline correction x block set)
+  fit    participant-level depth slopes at every channel, for the nine settings of
+         config.SCALP_SETTINGS (window length x baseline correction x block set, and 30 s
+         windows in the silent blocks with baseline correction)
   tfce   weighted threshold-free cluster enhancement over channel x frequency x time
 
-    python run_scalp_analysis.py                              # both steps, eight settings
+    python run_scalp_analysis.py                              # both steps, nine settings
     python run_scalp_analysis.py --only dur60_bl_silent
     python run_scalp_analysis.py --limit 4 --nperm 50         # smoke test, not a result
 
@@ -49,7 +50,7 @@ def run_root(name):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--steps', nargs='+', default=list(STEPS), choices=STEPS)
-    ap.add_argument('--only', nargs='+', default=None, help='settings (default: all eight)')
+    ap.add_argument('--only', nargs='+', default=None, help='settings (default: all nine)')
     ap.add_argument('--jobs', type=int, default=4)
     ap.add_argument('--limit', type=int, default=None,
                     help='first N participants only (a smoke test, not a result)')

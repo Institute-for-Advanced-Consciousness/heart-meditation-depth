@@ -4,8 +4,8 @@
 """Analysis 3: frontal-midline theta as a function of reported depth.
 
   fit      theta power per segment (frontocentral scalp mean and GED component), participant
-           slopes on depth and the sign-flip group test, for the silent blocks alone and for
-           the silent and SAPO blocks pooled
+           slopes on depth and the sign-flip group test, for the silent blocks alone, for
+           the silent and SAPO blocks pooled, and for the silent blocks with 30 s windows
   weights  the same group test with each participant weighted by the precision of their own
            slope, the weighting the paper reports
   associations  skipped correlations between each participant's theta depth slope and the
