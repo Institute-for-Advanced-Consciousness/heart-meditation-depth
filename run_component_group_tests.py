@@ -5,7 +5,7 @@
 
 Runs on the participant-level maps written by run_component_analysis.py:
 
-  tfce       weighted threshold-free cluster enhancement on each of the eight settings
+  tfce       weighted threshold-free cluster enhancement on each of the nine settings
              (precision weights and unweighted; HEP, HRSP, HRPC)
   confounds  the same test under each added confound regressor (primary setting)
   loso       the primary test repeated with each participant left out in turn

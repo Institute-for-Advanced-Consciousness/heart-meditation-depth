@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Analysis 2, participant level: component selection, HEP / HRSP / HRPC, depth slopes.
 
-For each of the eight settings of config.COMPONENT_SETTINGS (window length x baseline
-correction x block set) and for the two confound runs, this selects one heartbeat-related
-component per recording, computes the three measures and fits each participant's depth
-slope map. Results go to <results>/component/HEART_DEPTH/<setting folder>/ and
+For each of the nine settings of config.COMPONENT_SETTINGS (window length x baseline
+correction x block set, and 30 s windows in the silent blocks with baseline correction) and
+for the two confound runs, this selects one heartbeat-related component per recording,
+computes the three measures and fits each participant's depth slope map. Results go to <results>/component/HEART_DEPTH/<setting folder>/ and
 <results>/confounds_{component,channels}/HEART_DEPTH/<setting folder>/.
 
 The group tests on these maps are run by run_component_group_tests.py.

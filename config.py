@@ -105,12 +105,15 @@ COMPONENT = dict(
     nPerm=1000,
 )
 
-# The eight settings: window length x baseline correction x block set. The first is primary.
+# The nine settings: window length (60 or 45 s) x baseline correction x block set, and 30 s
+# windows with baseline correction in the silent blocks. The first is primary. With 30 s windows
+# an overlapped window always keeps less than OVERLAP_MIN_S, so the overlap rule removes it.
 COMPONENT_SETTINGS = {
     'dur60_bl_silent': dict(COMPONENT),
     'dur60_nobl_silent': dict(COMPONENT, DO_BASELINE_CORRECT=False),
     'dur45_bl_silent': dict(COMPONENT, EPOCH_DUR=45),
     'dur45_nobl_silent': dict(COMPONENT, EPOCH_DUR=45, DO_BASELINE_CORRECT=False),
+    'dur30_bl_silent': dict(COMPONENT, EPOCH_DUR=30),
     'dur60_bl_pooled': dict(COMPONENT, INCLUDE_SAPO=True),
     'dur60_nobl_pooled': dict(COMPONENT, INCLUDE_SAPO=True, DO_BASELINE_CORRECT=False),
     'dur45_bl_pooled': dict(COMPONENT, EPOCH_DUR=45, INCLUDE_SAPO=True),

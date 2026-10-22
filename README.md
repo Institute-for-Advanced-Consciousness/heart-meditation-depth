@@ -125,7 +125,7 @@ group level (weighted threshold-free cluster enhancement, TFCE).
 
 | Order | Script | What it computes | Needs |
 |---|---|---|---|
-| 1 | `run_component_analysis.py` | Analysis 2, L1: one heartbeat-related component per recording, the three measures, the depth slope maps (eight settings and two confound runs) | step 4 |
+| 1 | `run_component_analysis.py` | Analysis 2, L1: one heartbeat-related component per recording, the three measures, the depth slope maps (nine settings and two confound runs) | step 4 |
 | 2 | `run_component_group_tests.py` | Analysis 2, L2, in steps: `tfce`, `confounds`, `loso` (leave one participant out), `surrogate` (shifted heartbeats), `subsets` (EEG viability), `sources` (source localization), `ongoing` (ongoing beta power) | 1 |
 | 3 | `run_scalp_analysis.py` | Analysis 1, L1 and L2: HEP, HRSP and HRPC at all 64 electrodes | step 4 |
 | 4 | `run_fmt_depth.py` | Analysis 3: frontal-midline theta against depth, and its associations with the self-reports | step 4 |
