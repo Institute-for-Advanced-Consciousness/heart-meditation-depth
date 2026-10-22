@@ -4,8 +4,9 @@
 """Figure 4 and Supplementary Figure 1: scalp analysis of HRSP at all 64 electrodes.
 
 Figure 4 is the setting that matches the primary analysis (60 s windows, silent blocks,
-baseline correction); Supplementary Figure 1 the same with 45 s windows. Both use the
-inverse-variance weighted TFCE over channel x frequency x time. Panels:
+baseline correction); Supplementary Figure 1 the same with 45 s windows (top) and with 30 s
+windows (bottom), drawn as two files. All use the inverse-variance weighted TFCE over channel x
+frequency x time. Panels:
 
   A  depth-slope t averaged over 11 posterior channels (chosen in advance, where the selected
      components' mean scalp map peaks); points not significant at any of them are grey
@@ -39,7 +40,8 @@ from figure5_primary import INK, MUTED, NULLC, REALC, outline, clean, primary_ro
 from run_scalp_analysis import run_root                            # noqa: E402
 
 FIGURES = (('dur60_bl_silent', 'Figure_4_scalp'),
-           ('dur45_bl_silent', 'Supplementary_Figure_1_scalp_45s'))
+           ('dur45_bl_silent', 'Supplementary_Figure_1_scalp_45s'),
+           ('dur30_bl_silent', 'Supplementary_Figure_1_scalp_30s'))
 MEAS, MODEL = 'hrsp', 'session'
 ALPHA = 0.05
 POSTERIOR = ('POz', 'Oz', 'O1', 'O2', 'PO3', 'PO4', 'PO7', 'PO8', 'Pz', 'P3', 'P4')
