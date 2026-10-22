@@ -150,8 +150,10 @@ Where the paper's tables come from:
 | Supplementary Table 4 | `results/component/HEART_DEPTH/<primary setting>/perbeat_wise/outcomes_demographics_tfce/*_demographics.csv` (the other tables in that folder are not reported) |
 | Supplementary Table 5 | `results/periods/HEART_PERIOD/<run>/period_tfce_all.csv` |
 
-The primary setting's folder is `lee-hrsp-raw_1IC_dur60_bl_nosapo` (selection by the method of
-Lee et al., 2024, on raw HRSP; one component; 60 s windows; baseline correction; silent blocks).
+The primary setting's folder is `lee-hrsp-raw_1IC_dur60_bl_nosapo_cwtseg_trim30_bnd2` (one
+component, selected by its raw heartbeat-related spectral power; 60 s windows; baseline
+correction; silent blocks; wavelet transform on the stored 90 s segment; an overlapped window kept
+when at least 30 s remain; 2 s kept clear of each join of removed data).
 
 ## 6. Figures
 
