@@ -1,21 +1,20 @@
 # Copyright (C) 2026 Institute for Advanced Consciousness Studies
 # Author: Cedric Cannard
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Figure 7: frontal-midline theta across meditation depth, SAPO blocks pooled with silent.
+"""Figure 7: frontal-midline theta across meditation depth, silent blocks.
 
   A  the frontocentral scalp measure (no spatial filter, no component selection)
   B  the GED-filtered component
 
-Each violin is the distribution over participants of mean log theta power at that depth level
-(z-scored within recording), relative to the participant's own mean over the levels they
-reported; grey points are participants. The marker and bar beside each violin are the group
-mean and its 95% confidence interval, and the heavier line joins the means. The kernel density
-is drawn between the 2nd and 98th percentiles; every point is plotted. The panels share a
-vertical axis. Titles give the inverse-variance weighted group depth coefficient, with weights
-1 / (v + median v) from each participant's own slope variance v.
+Drawn as panel D of Figure 5: at each depth level, the mean and standard error over
+participants of mean log theta power (z-scored within recording), centred within participant
+(relative to the participant's own mean over the levels they reported); points in the depth
+colours, cold = shallow, warm = deep; the number of participants under each level. The panels
+share a vertical axis. Titles give the inverse-variance weighted group depth coefficient and
+its 95% interval, with weights 1 / (v + median v) from each participant's own slope variance v.
 
-Reads main/run_results.npz of the pooled and silent run folders of run_fmt_depth.py. The
-silent-block coefficients are printed, not drawn.
+Reads main/run_results.npz of the silent and pooled run folders of run_fmt_depth.py. The
+pooled-block coefficients are printed, not drawn.
 
     python figures/figure7_theta.py
 """
@@ -33,9 +32,9 @@ import figure_style as F                                          # noqa: E402
 from run_fmt_depth import run_of_setting                           # noqa: E402
 
 STEM = 'Figure_7_theta'
-C_GED = '#B22222'
-C_SCALP = '#2C6E8F'
-C_PT = '#3A4750'
+FONT = {'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'pdf.fonttype': 42}
+INK, MUTED = '#1a1a1a', '#6b6b6b'                 # as in Figure 5
 
 
 def load(setting):
@@ -72,23 +71,16 @@ def weighted_ci(b, w, alpha=0.05):
     return wm, wm - crit * se, wm + crit * se, n_eff, int(ok.sum())
 
 
-def violin(ax, vals, x, colour, width=0.20, seed=11):
-    """Symmetric violin with the points drawn over it."""
-    from scipy.stats import gaussian_kde
-    v = np.asarray(vals, float)
-    v = v[np.isfinite(v)]
-    if v.size < 3:
-        return
-    lo, hi = np.percentile(v, [2, 98])
-    if hi <= lo:
-        lo, hi = v.min(), v.max()
-    grid = np.linspace(lo, hi, 200)
-    dens = gaussian_kde(v)(grid)
-    dens = dens / dens.max() * width
-    ax.fill_betweenx(grid, x - dens, x + dens, facecolor=colour, alpha=0.22,
-                     linewidth=0.5, edgecolor=colour, zorder=1)
-    jit = np.random.default_rng(seed).uniform(-0.085, 0.085, v.size)
-    ax.scatter(x + jit, v, s=3.4, color=C_PT, alpha=0.55, linewidths=0, zorder=3)
+def level_stats(prof):
+    """[level, participant] values centred within participant -> mean, SE and n per level."""
+    c = prof - np.nanmean(prof, axis=0, keepdims=True)
+    mu, se, nn = [], [], []
+    for row in c:
+        v = row[np.isfinite(row)]
+        nn.append(v.size)
+        mu.append(v.mean() if v.size else np.nan)
+        se.append(v.std(ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan)
+    return np.array(mu), np.array(se), np.array(nn)
 
 
 def main():
@@ -98,64 +90,55 @@ def main():
 
     S, P = load('silent'), load('pooled')
     os.makedirs(config.FIGURES_DIR, exist_ok=True)
-    with plt.rc_context(F.PAPER_RC):
-        fig, axes = plt.subplots(1, 2, figsize=(6.6, 3.0), dpi=600)
-        lv = P['levels']
-        panels = [(axes[0], P['prof_scalp'], P['beta_scalp'], P['w_scalp'], C_SCALP,
-                   'Scalp, frontal-midline', 'Theta power, within-participant centred'),
-                  (axes[1], P['prof'], P['beta'], P['w'], C_GED, 'GED spatial filter', None)]
-        profs = []
-        for ax, raw, betas, wts, col, ttl, ylab in panels:
-            prof = raw - np.nanmean(raw, axis=0, keepdims=True)    # [level, participant]
-            profs.append(prof)
-            for i in range(len(lv)):
-                violin(ax, prof[i], i, col, width=0.24, seed=20 + i)
-                v = prof[i][np.isfinite(prof[i])]
-                if v.size >= 2:
-                    se = v.std(ddof=1) / np.sqrt(v.size)
-                    ax.errorbar(i + 0.30, v.mean(), yerr=1.96 * se, fmt='o', ms=3.8,
-                                color=col, ecolor=col, elinewidth=1.5,
-                                capsize=2.6, zorder=6, markeredgewidth=0.6,
-                                markeredgecolor='w')
-            means = [np.nanmean(prof[i]) for i in range(len(lv))]
-            ax.plot(np.arange(len(lv)) + 0.30, means, color=col, lw=1.7,
-                    alpha=0.95, zorder=5, solid_capstyle='round')
-            ax.axhline(0, color='k', lw=0.6, zorder=0)
-            ax.set_xticks(range(len(lv)))
-            ax.set_xticklabels([str(x) for x in lv])
-            ax.set_xlabel('Self-reported meditation depth')
-            if ylab:
-                ax.set_ylabel(ylab)
+    W, H = 120.0, 56.0                                     # mm
+    with plt.rc_context(dict(F.PAPER_RC, **FONT)):
+        fig = plt.figure(figsize=(W / 25.4, H / 25.4), dpi=600, facecolor='white')
+
+        def add(x, y, w, h):                               # mm from the top-left corner
+            return fig.add_axes([x / W, 1 - (y + h) / H, w / W, h / H])
+
+        axes = [add(16.0, 12.0, 44.0, 30.0), add(72.0, 12.0, 44.0, 30.0)]
+        lv = S['levels']
+        cmap_d = F.depth_cmap()                            # cold = shallow, warm = deep
+        dcol = [cmap_d(i / max(lv.size - 1, 1)) for i in range(lv.size)]
+        panels = [(S['prof_scalp'], S['beta_scalp'], S['w_scalp'], 'Frontocentral scalp theta'),
+                  (S['prof'], S['beta'], S['w'], 'GED theta component')]
+        for k, (ax, (prof, betas, wts, ttl)) in enumerate(zip(axes, panels)):
+            mu, se, nn = level_stats(prof)
+            ax.axhline(0, color=MUTED, lw=0.5, ls='--')
+            ax.errorbar(lv, mu, yerr=se, color=INK, lw=0.9, capsize=1.6, elinewidth=0.7,
+                        zorder=2)
+            ax.scatter(lv, mu, s=20, c=dcol, edgecolors=INK, linewidths=0.5, zorder=3)
+            ax.set_xticks(lv)
+            ax.set_xticklabels(['%d\nn = %d' % (a, b) for a, b in zip(lv, nn)])
+            ax.set_xlim(lv[0] - 0.45, lv[-1] + 0.45)
+            ax.set_xlabel('reported meditation depth')
             wm, lo, hi, _n_eff, n = weighted_ci(betas, wts)
-            ax.set_title('%s\nslope %+.3f [%+.3f, %+.3f], n = %d' % (ttl, wm, lo, hi, n), pad=4)
-            ax.set_xlim(-0.55, len(lv) - 0.45)
+            ax.set_title('%s\nslope %+.3f [%+.3f, %+.3f], n = %d' % (ttl, wm, lo, hi, n),
+                         loc='left', pad=6)
             for sp in ('top', 'right'):
                 ax.spines[sp].set_visible(False)
+            fig.text((ax.get_position().x0 * W - 13.0) / W, 1 - 4.0 / H, 'AB'[k], fontsize=8,
+                     fontweight='bold', va='top', ha='left', color=INK)
+        axes[0].set_ylabel('theta power, z\n(centred within participant)')
         ylo = min(a.get_ylim()[0] for a in axes)
         yhi = max(a.get_ylim()[1] for a in axes)
-        for ax, prof in zip(axes, profs):
+        for ax in axes:
             ax.set_ylim(ylo, yhi)
-            for i in range(len(lv)):
-                ax.text(i, ylo, 'n=%d' % int(np.isfinite(prof[i]).sum()),
-                        ha='center', va='bottom', fontsize=4.2, color='0.45')
-        axes[1].set_yticklabels([])
-        fig.tight_layout()
-        fig.canvas.draw()
-        for i, ax in enumerate(axes):
-            bb = ax.get_position()
-            fig.text(max(bb.x0 - 0.058, 0.002), min(bb.y1 + 0.030, 0.998),
-                     'AB'[i], fontsize=8, fontweight='bold', va='top')
         for ext in ('pdf', 'png'):
             p = os.path.join(config.FIGURES_DIR, '%s.%s' % (STEM, ext))
-            fig.savefig(p, dpi=600, bbox_inches='tight')
+            fig.savefig(p, dpi=600, facecolor='white')
             print('wrote %s' % p)
         plt.close(fig)
 
-    for d, lab in ((P, 'pooled'), (S, 'silent')):
-        for key, wk, meas in (('beta_scalp', 'w_scalp', 'scalp'), ('beta', 'w', 'GED')):
+    for d, lab in ((S, 'silent'), (P, 'pooled')):
+        for key, wk, meas, pk in (('beta_scalp', 'w_scalp', 'scalp', 'prof_scalp'),
+                                  ('beta', 'w', 'GED', 'prof')):
             wm, lo, hi, n_eff, n = weighted_ci(d[key], d[wk])
-            print('%-6s blocks, %-5s slope %+.4f [%+.4f, %+.4f], n = %d (Kish n_eff %.1f)'
-                  % (lab, meas, wm, lo, hi, n, n_eff))
+            mu, se, nn = level_stats(d[pk])
+            print('%-6s blocks, %-5s slope %+.4f [%+.4f, %+.4f], n = %d (Kish n_eff %.1f); '
+                  'level means %s (n %s)' % (lab, meas, wm, lo, hi, n, n_eff,
+                                             ', '.join('%+.2f' % x for x in mu), nn.tolist()))
 
 
 if __name__ == '__main__':
