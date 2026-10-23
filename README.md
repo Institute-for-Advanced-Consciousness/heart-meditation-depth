@@ -4,8 +4,7 @@ Code for the paper
 
 > Cannard, C., Nath, M., Becattini, V., Laukkonen, R. E., Ganesan, S., Hanley, A., Holecek, A.,
 > Simonian, N., Lifshitz, M., Schoeller, F., Cahn, B. R., Khalsa, S., Sacchet, M. D., and
-> Reggente, N. Heartbeat-related spectral power, but not evoked amplitude or phase consistency,
-> tracks self-reported meditative depth.
+> Reggente, N. Heartbeat-related spectral power (HRSP) as a Neural Marker of Meditative Depth.
 
 It reproduces the analyses, figures and tables of the paper from the public dataset: the
 preprocessing (MATLAB, EEGLAB), the segment extraction and all statistics (Python). The steps
@@ -158,18 +157,18 @@ when at least 30 s remain; 2 s kept clear of each join of removed data).
 ## 6. Figures
 
 `python figures/<name>.py` writes into `results/figures/`, as PDF and PNG (Supplementary Figure 3
-as PNG only):
+as PNG only). The script numbers in the last column are those of the table in section 5:
 
 | Script | Draws | Needs |
 |---|---|---|
-| `figure3_participant_flow.py` | Figure 3 | the BIDS events and analysis 1 |
-| `figure4_scalp.py` | Figure 4 and Supplementary Figure 1 | analysis 3, and analysis 2 `tfce` (the span outlined on the maps) |
-| `figure5_primary.py` | Figure 5 | analyses 1 and 2 `tfce` |
-| `figure6_sources.py` | Figure 6 | analysis 2 `sources` |
-| `figure7_theta.py` | Figure 7 | analysis 4 |
-| `supplementary_figure2_confounds.py` | Supplementary Figure 2 and Table 1 | analysis 2 `confounds` |
-| `supplementary_figure3_questionnaires.py` | Supplementary Figure 3 | analysis 7 |
-| `supplementary_figure4_periods.py` | Supplementary Figure 4 | analysis 5 |
+| `figure3_participant_flow.py` | Figure 3 | the BIDS events and script 1 |
+| `figure4_scalp.py` | Figure 4 and Supplementary Figure 1 | script 3, and script 2 `tfce` (the span outlined on the maps) |
+| `figure5_primary.py` | Figure 5 | scripts 1 and 2 `tfce` |
+| `figure6_sources.py` | Figure 6 | script 2 `sources` |
+| `figure7_theta.py` | Figure 7 | script 4 |
+| `supplementary_figure2_confounds.py` | Supplementary Figure 2 and Table 1 | script 2 `confounds` |
+| `supplementary_figure3_questionnaires.py` | Supplementary Figure 3 | script 7 |
+| `supplementary_figure4_periods.py` | Supplementary Figure 4 | script 5 |
 
 Figures 1 and 2 (the design and the setup) are not data figures. The numbers of individuals
 screened (41) and of pilot recordings excluded (2) in Figure 3 come from the study's screening
