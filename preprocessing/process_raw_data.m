@@ -22,15 +22,17 @@
 % The ECG and the respiration are saved inside each file as EEG.ECG and EEG.RESP.
 %
 % The recordings of the paper were loaded from the original XDF files with the same stream
-% synchronisation and cropping that produced the BIDS files; the BIDS files hold the same
-% samples and markers. Gap markers of the BIDS files (a few recordings) are dropped here
-% because the original recordings were processed as continuous signals.
+% synchronisation and cropping that produced the BIDS files. The BIDS files hold the same
+% samples and the same markers, except 40 markers of sub-002 ses-2 and sub-014 ses-2 that are
+% only in the paper's files (see the README). Gap markers of the BIDS files (a few recordings)
+% are dropped here because the original recordings were processed as continuous signals.
 %
 % Requires the Signal Processing and the Statistics and Machine Learning Toolboxes, EEGLAB
 % (with the clean_rawdata, ICLabel, firfilt and dipfit plugins), the BrainBeats toolbox
 % (apply_car, detect_ecg_artifacts; see the README for the version) and the functions in
-% preprocessing/functions. Extended Infomax ICA starts from random weights, so a rerun matches
-% the published preprocessed files closely, not exactly; the other steps are deterministic.
+% preprocessing/functions. Extended Infomax ICA starts from random weights, and the paper's
+% files came mostly from earlier versions of this script, so a rerun is close to them, not
+% identical (see the README).
 %
 % Output: <out_path>/<participant>/<session>/<participant>_ses<session>.set, and sInfo.mat (a
 % per-recording summary, saved after every recording) in <out_path>. A recording whose ECG is

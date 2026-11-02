@@ -10,8 +10,9 @@ result_path: where a result goes.
     HEART_DEPTH/        lee-hrsp-raw_1IC_dur60_bl_nosapo/segment_wise/main/...
     HEART_DEPTH_SCALP/  dur60_nosapo_bl-150--50glm_w5_f4to30_prim-session_nperm500/main/...
 
-(fmt_depth_tag, heart_run_tag and heart_depth_tag at the paper's settings in config.py;
-no current caller passes a method folder.)
+(the form of fmt_depth_tag, heart_run_tag and heart_depth_tag; the paper's settings in config.py
+add a token for each option they set, such as _cwtseg_trim30_bnd2. No current caller passes a
+method folder.)
 
 The grain level is part of the path (see `result_dir`). A grained arm's three grains are
 three analyses, not three views of one; '' means the arm is single-grain and gets no such
@@ -304,8 +305,7 @@ def heart_run_tag(p):
          f"dur{p.get('EPOCH_DUR', 60):g}",
          'bl' if p.get('DO_BASELINE_CORRECT') else 'nobl',
          'nosapo+sapo' if p.get('INCLUDE_SAPO', True) else 'nosapo']
-    # Window position and what the wavelet runs on, only when they differ from the
-    # paper's first submission, so its folders keep their names.
+    # Window position and what the wavelet runs on, only when they differ from the defaults.
     if p.get('PRE_END', TAG_DEFAULTS['PRE_END']) != TAG_DEFAULTS['PRE_END']:
         t.append(f"pre{p['PRE_END']:g}")
     if p.get('WAVELET_ON', 'window') != 'window':

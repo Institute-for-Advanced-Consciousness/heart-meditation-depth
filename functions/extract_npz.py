@@ -14,6 +14,9 @@ Reads each session's .set file and extracts:
     can be reconstructed from the scalp data by matrix multiplication;
   - channel positions, segment metadata, and the meditation-block spans that scope R-peak
     detection;
+  - the joins of the recording: those left by removed data and those that mark the task events
+    (the gong, every report's response period, presses and ratings, pre-block data), which the
+    analyses keep clear of (task_event_joins);
   - the ICLabel class probabilities of the components, all recordings in one file.
 
 Usage:
@@ -55,6 +58,10 @@ DUR_TOL_SEC = 3      # tolerance for short epochs
 # resolves at its own EPOCH_DUR + PRE_END. True trims each segment here so that it does not
 # overlap the next one at the extraction duration.
 RESOLVE_OVERLAPS = False
+
+# Task events marked as joins (task_event_joins)
+RESPONSE_LEAD_S = 2      # s before a prompt or first press where the response period starts
+TASK_JOIN_STEP_S = 1     # s between joins along a span
 
 # Period parameters
 PERIOD_TRIM_EDGE_S = 1   # trim from each period span edge
@@ -537,6 +544,58 @@ def extract_period_windows(annotations, sfreq, n_total_samples, period_name,
 # MAIN EXTRACTION
 # =====================================================================
 
+def _marker_spans(onsets, descs, begin_pattern, end_of, max_len):
+    """[(begin, end)] in s for each marker matching begin_pattern, closed by the first matching
+    end marker within max_len s (else begin + 15 s)."""
+    spans = []
+    for i in np.where([bool(re.search(begin_pattern, d)) for d in descs])[0]:
+        e = onsets[(descs == end_of(descs[i])) & (onsets >= onsets[i])
+                   & (onsets - onsets[i] <= max_len)]
+        spans.append((onsets[i], e.min() if e.size else onsets[i] + 15.0))
+    return spans
+
+
+def task_event_joins(onsets, descs, fs, seg_span, seg_cond):
+    """Join samples that keep the analysis away from the task events.
+
+    A depth report is a sequence of events: a prompt (probe) or a first press (emerge), the
+    presses that count the rating, the rating marker that closes the response window, then the
+    confidence rating. None of this, nor the gong, belongs in a heartbeat epoch, so each event
+    is marked as a join in `boundaries`, in the same coordinates as the joins left by removed
+    data. The 2 s guard of the analyses (BOUNDARY_GUARD_S) then keeps every heartbeat epoch,
+    theta sample and inter-beat interval away from them.
+
+    Marked: the gong; each report's response period, from RESPONSE_LEAD_S before its prompt or
+    first press to its end; every press and rating outside those periods; and, for a silent
+    segment, the data before its block began. A span gets a join every TASK_JOIN_STEP_S and at
+    its end, an event one join. With the 2 s guard, a heartbeat epoch ends at least 4 s before a
+    prompt or first press and stays at least 2 s from everything else.
+
+    onsets (s) and descs are the markers as stored in the .set file, before the rating labels
+    are normalised and filtered: every report counts here, also those the analysis does not use.
+    """
+    descs = np.asarray(descs)
+    spans = _marker_spans(onsets, descs, r'^gong-begin$', lambda b: 'gong-end', 20.0)
+    response = [(a - RESPONSE_LEAD_S, b) for a, b in _marker_spans(
+        onsets, descs, r'^(emerge|probe)-.*-begin$', lambda b: b[:-len('begin')] + 'end', 60.0)]
+    spans += response
+    points = onsets[[bool(re.search(r'^(response-received|rating-)', d)) for d in descs]]
+    points = [t for t in points if not any(a <= t <= b for a, b in response)]
+
+    block_begin = np.sort(onsets[[bool(re.search(r'^block-nosapo-.*-begin$', d)) for d in descs]])
+    span_s = seg_span[:, 0] / fs
+    for s0, report in zip(span_s[seg_cond == 0], (span_s + EPOCH_DUR + PRE_END)[seg_cond == 0]):
+        begun = block_begin[block_begin <= report]
+        if begun.size and begun[-1] > s0:
+            spans.append((s0, begun[-1]))
+
+    joins = list(points)
+    for a, b in spans:
+        joins += list(np.arange(a, b, TASK_JOIN_STEP_S)) + [b]
+    joins = np.unique(np.round(np.asarray(joins) * fs).astype(np.int64))
+    return joins[joins > 0]
+
+
 def extract_session(data_path, output_dir, subject_id, session_num):
     """Extract one session's data to a compressed .npz file."""
     ses_path, fname = find_session_set(data_path, subject_id, session_num)
@@ -593,8 +652,8 @@ def extract_session(data_path, output_dir, subject_id, session_num):
     # --- Load ICA weights via pymatreader ---
     # icasphere is required, not optional. EEGLAB reconstructs activations as
     #     ic_act = icaweights * icasphere * data(icachansind,:)
-    # runica spheres by default, so icasphere is the whitening matrix, not the identity.
-    # Dropping it yields wrong IC activations, hence wrong topographies and a wrong selection.
+    # icasphere is the whitening matrix in general (the identity in the recordings checked here).
+    # Dropping a real one yields wrong IC activations, topographies and selection.
     try:
         mat_ica = read_mat(filepath, variable_names=['icaweights', 'icasphere',
                                                      'icawinv', 'icachansind'])
@@ -616,6 +675,9 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         icasphere = None
         icawinv = None
         icachansind = None
+
+    event_onsets = np.asarray(raw.annotations.onset).copy()
+    event_descs = np.asarray(raw.annotations.description).copy()
 
     # --- Filter events ---
     # normalise first: a base-less rating label (two participants only) is invisible
@@ -756,6 +818,10 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         seg_resp_padded[i, :sl] = seg_resp[i]
         seg_len[i] = sl
 
+    # --- Task events, marked as joins ---
+    boundaries = np.unique(np.concatenate([boundaries, task_event_joins(
+        event_onsets, event_descs, fs, samp[:n_seg].astype(np.int64), seg_cond)]))
+
     save_dict = {
         'subject_id': subject_id,
         'session': session_num,
@@ -801,8 +867,9 @@ def extract_session(data_path, output_dir, subject_id, session_num):
         'block_spans': block_spans,
         'block_names': np.array(block_names, dtype=object),
         'block_sources': np.array(block_sources, dtype=object),
-        # Joins left by the ECG-contaminated samples removed in preprocessing: index of the
-        # first sample after each join, in the same coordinates as seg_span.
+        # Joins: the ECG-contaminated samples removed in preprocessing and the task events
+        # (task_event_joins). Index of the first sample after each join, in the same
+        # coordinates as seg_span.
         'boundaries': boundaries,
         # Periods (fixed-length windows -> 3D arrays)
     }
@@ -865,6 +932,9 @@ def write_iclabels(data_path, output_dir, subjects):
 
 
 def main():
+    if '-h' in sys.argv or '--help' in sys.argv:
+        print(__doc__)
+        return
     # --data and --out override DATA_PATH and OUTPUT_DIR, so the extraction can be run on
     # another copy of the preprocessed data without editing the constants.
     global DATA_PATH, OUTPUT_DIR

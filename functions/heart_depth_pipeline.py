@@ -113,7 +113,7 @@ DEFAULT_PARAMS = dict(
     # within the wavelet's reach of a zero-padded edge (3 SD, 0.6 s at 4 Hz).
     # 'segment': the whole stored segment, then the window is cut from the
     # transform, so every beat in the window sees real data on both sides
-    # (at PRE_END=10, 22 s before the window and 8 s after it). Folder token
+    # (at PRE_END=3, 29 s before the window and 1 s after it). Folder token
     # 'cwtseg'.
     WAVELET_ON='window',
     # Two analysis windows overlap when their reports are less than EPOCH_DUR apart.
@@ -123,8 +123,8 @@ DEFAULT_PARAMS = dict(
     # discarded otherwise. Folder token 'trim<OVERLAP_MIN_S>'.
     OVERLAP_RULE='drop',
     OVERLAP_MIN_S=30,
-    # Joins left by the removal of ECG-contaminated samples (the `boundaries` of the segment
-    # files). With BOUNDARY_GUARD_S > 0, a heartbeat whose epoch comes within that many
+    # Joins left by the removal of ECG-contaminated samples and those that mark the task events
+    # (the `boundaries` of the segment files). With BOUNDARY_GUARD_S > 0, a heartbeat whose epoch comes within that many
     # seconds of a join is not used, and no inter-beat interval is taken across a join.
     # 0 keeps every heartbeat.
     BOUNDARY_GUARD_S=0,

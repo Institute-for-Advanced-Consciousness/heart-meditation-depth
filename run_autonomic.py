@@ -23,5 +23,8 @@ import config                                                     # noqa: E402
 import autonomic_depth                                        # noqa: E402
 
 if __name__ == '__main__':
+    if '-h' in sys.argv or '--help' in sys.argv:
+        print(__doc__)
+        sys.exit(0)
     sets = [x for k, v in getattr(config, 'AUTONOMIC', {}).items() for x in ('--set', '%s=%r' % (k, v))]
     sys.exit(autonomic_depth.main(['--data', config.DATA_DIR, '--out', config.AUTONOMIC_DIR] + sets))

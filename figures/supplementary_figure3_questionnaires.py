@@ -34,7 +34,15 @@ LABEL = {'Trait_FFMQ_Observing': 'FFMQ Observing',
          'Change_POMS_Depression': 'POMS Depression, post minus pre',
          'Task_TonesDistracting': 'Tones distracting (1-10)', 'MEDI_Hindrances': 'MEDI Hindrances',
          'MEDI_Relaxation': 'MEDI Relaxation', 'Task_GongReliability': 'Gong helped (1-10)',
-         'Trait_FFMQ_Describing': 'FFMQ Describing', 'MEDI_PersonalSelf': 'MEDI Personal Self'}
+         'Trait_FFMQ_Describing': 'FFMQ Describing', 'MEDI_PersonalSelf': 'MEDI Personal Self',
+         'POMS_TotalMoodDisturbance': 'POMS Total Mood Disturbance', 'POMS_Vigor': 'POMS Vigor',
+         'POMS_Tension': 'POMS Tension', 'Trait_MAAS': 'MAAS',
+         'Change_POMS_TotalMoodDisturbance': 'POMS Total Mood Disturbance, post minus pre'}
+
+
+def p_text(p):
+    """A p or q value as printed in a title: '= .012', or '< .001'."""
+    return '< .001' if p < .001 else '= ' + ('%.3f' % p).lstrip('0')
 
 
 def main():
@@ -69,10 +77,10 @@ def main():
         ba = np.polyfit(xs, ys, 1)
         xa = np.array([xs.min(), xs.max()])
         ax.plot(xa, np.polyval(ba, xa), color='#c0392b', lw=.8, ls='--')
-        ax.set_title('%s\n%s = %+.2f [%+.2f, %+.2f], p = %.3f, q = %.3f'
+        ax.set_title('%s\n%s = %+.2f [%+.2f, %+.2f], p %s, q %s'
                      % (LABEL.get(t['Scale'], t['Scale']), t['Rule_coef'], float(t['Rule_value']),
-                        float(t['Rule_CI_lo']), float(t['Rule_CI_hi']), float(t['Rule_p']),
-                        float(t['Rule_q'])), fontsize=7)
+                        float(t['Rule_CI_lo']), float(t['Rule_CI_hi']), p_text(float(t['Rule_p'])),
+                        p_text(float(t['Rule_q']))), fontsize=7)
         ax.set_xlabel('Depth slope (z); negative = stronger decrease')
         ax.set_ylabel('Score')
         ax.legend(frameon=False, fontsize=6.5, loc='best')

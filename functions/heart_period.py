@@ -432,7 +432,8 @@ def session_periods(npz_path, p, verbose=True):
             continue
         comp = reconstruct_ics(eeg, np.asarray(z['icaweights'], float),
                                np.asarray(z['icasphere'], float),
-                               np.asarray(z['icachansind']).ravel())
+                               np.asarray(z['icachansind']).ravel(),
+                               icawinv=np.asarray(z['icawinv'], float))
         # Polarity-aligned mean, not a plain one: averaging components of opposite
         # topographic sign cancels the HEP toward zero (see the multi-IC combination in
         # heart_depth_pipeline.session_measures), and IC_SEL_THRESH < 1 can select several

@@ -220,9 +220,10 @@ def reports(ids):
     print('  depth distribution, confidence >= 4:   %s'
           % ', '.join('%.1f%%' % (100 * (d4 == k).mean()) for k in DEPTHS))
     gp = np.array(gaps)
+    span = config.COMPONENT['EPOCH_DUR'] + config.COMPONENT['PRE_END']   # window and its margin
     print('  gap between consecutive confident reports of a recording: median %.0f s, IQR %.0f '
-          'to %.0f; >= 63 s in %.0f%%' % (np.median(gp), np.percentile(gp, 25),
-                                          np.percentile(gp, 75), 100 * (gp >= 63).mean()))
+          'to %.0f; >= %g s in %.0f%%' % (np.median(gp), np.percentile(gp, 25),
+                                          np.percentile(gp, 75), span, 100 * (gp >= span).mean()))
 
 
 def autonomic():

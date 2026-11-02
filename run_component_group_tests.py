@@ -153,7 +153,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--steps', nargs='+', default=list(STEPS), choices=STEPS)
     ap.add_argument('--only', nargs='+', default=None,
-                    help='settings for the tfce step (default: all eight)')
+                    help='settings for the tfce step (default: all nine)')
     ap.add_argument('--jobs', type=int, default=4)
     ap.add_argument('--nperm', type=int, default=None,
                     help='permutations, overriding config (smoke tests only)')

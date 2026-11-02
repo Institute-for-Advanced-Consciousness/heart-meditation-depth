@@ -17,6 +17,14 @@ preprocessing/process_raw_data.m (HMD_PREPROCESSING_SUMMARY, several files separ
 path separator; default ./data/preprocessed/sInfo.mat).
 """
 import os
+import sys
+
+# Windows: a spawned worker receives this process's stdin handle value, which can name a pool
+# semaphore when stdin is redirected, and multiprocessing then closes it as "stdin" (WinError 6,
+# BrokenProcessPool, or a pool that hangs). With no stdin handle there is nothing to pass on.
+if sys.platform == 'win32':
+    import ctypes
+    ctypes.windll.kernel32.SetStdHandle(-10, None)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get('HMD_DATA', os.path.join(ROOT, 'data', 'segments'))
@@ -35,12 +43,12 @@ FIGURES_DIR = os.path.join(RESULTS_DIR, 'figures')
 # The segment is the unit of analysis; recording session is in the participant-level model.
 SCALP = dict(
     IC_SELECT_METHOD='scalp',       # names the arm in the folder tag; nothing is selected
-    PRE_END=3,
+    PRE_END=3,                      # s between the end of the window and the report
     WAVELET_ON='segment',           # wavelet on the stored 90 s segment, window cut from it
     MIN_SESSION_MIN=25,             # min, on a lower bound of the recording length
     OVERLAP_RULE='trim',            # an overlapped window is kept up to the next one's start
     OVERLAP_MIN_S=30,               # s it must keep, or it is dropped
-    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join left by removed ECG-contaminated data
+    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join (removed data, task events)
     PRIMARY_MODEL='session',
     MODELS=('session',),
     BASELINE_METHOD='glm',
@@ -88,12 +96,16 @@ COMPONENT = dict(
     IC_SEL_THRESH=1.0,              # the single highest-scoring component
     # segmentation
     EPOCH_DUR=60,                   # s
+    # A depth rating is entered as a count of clicker presses, closed by a fixed response
+    # window (4 s after the first press when emerging, 9 s after the prompt of a probe). The
+    # window therefore reaches into the response period; the heartbeats there are left out by
+    # the joins that mark it (extract_npz.task_event_joins) and BOUNDARY_GUARD_S.
     PRE_END=3,                      # s between the end of the window and the report
     WAVELET_ON='segment',           # wavelet on the stored 90 s segment, window cut from it
     MIN_SESSION_MIN=25,             # min, on a lower bound of the recording length
     OVERLAP_RULE='trim',            # an overlapped window is kept up to the next one's start
     OVERLAP_MIN_S=30,               # s it must keep, or it is dropped
-    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join left by removed ECG-contaminated data
+    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join (removed data, task events)
     INCLUDE_SAPO=False,             # silent blocks only
     # baseline correction (regression form)
     DO_BASELINE_CORRECT=True,
@@ -177,7 +189,7 @@ ONGOING = dict(band='beta', n_perm=10000)
 FMT_DEPTH = dict(
     THETA_BP=[5, 8],                # Hz
     EPOCH_DUR=60,
-    PRE_END=3,
+    PRE_END=3,                      # as in the component analysis
     FMT_ELECS=['fz', 'f1', 'f2', 'f3', 'f4', 'fc1', 'fc2', 'fc3', 'fc4', 'cz'],
     GED_TEMPLATE_ELEC=None,         # template centred on FMT_ELECS
     GED_SHRINKAGE=0.01,
@@ -188,7 +200,7 @@ FMT_DEPTH = dict(
     MIN_SESSION_MIN=25,             # min, on a lower bound of the recording length
     OVERLAP_RULE='trim',            # an overlapped window is kept up to the next one's start
     OVERLAP_MIN_S=30,               # s it must keep, or it is dropped
-    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join left by removed ECG-contaminated data
+    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join (removed data, task events)
     L1_METHOD='WLS',
     nPerm=1000,
 )
@@ -234,7 +246,7 @@ PERIOD_HEART = dict(
     DROP_EDGE_BEATS=True,
     WAVELET_ON='block',             # wavelet on each period's continuous block, then epochs
     EDGE_GUARD_S=2.0,               # s of real data required beyond each epoch
-    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join left by removed ECG-contaminated data
+    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join (removed data, task events)
     SAME_SESSION_PAIRS=True,        # both periods of a contrast from the same session
 )
 PERIOD_HEART_TFCE = dict(schemes=('ivw_own', 'unweighted'), measures=('hrsp', 'hep', 'hepc'),
@@ -258,7 +270,7 @@ PERIOD_FMT = dict(
     STANDARDIZE_WITHIN_SESSION=True,
     N_PERM=10000,
     SCHEMES=['unweighted', 'precision_nwin'],
-    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join left by removed ECG-contaminated data
+    BOUNDARY_GUARD_S=2.0,           # s kept clear of each join (removed data, task events)
     SAME_SESSION_PAIRS=True,        # both periods of a contrast from the same session
 )
 
@@ -268,7 +280,8 @@ PERIOD_FMT = dict(
 # Mean inter-beat interval, RMSSD, respiratory rate and respiration amplitude on the 60 s
 # windows of the silent blocks (both pinned inside functions/autonomic_depth.py).
 AUTONOMIC_DIR = os.path.join(RESULTS_DIR, 'autonomic')
-AUTONOMIC = dict(BOUNDARY_GUARD_S=2.0)   # no inter-beat interval across a join
+AUTONOMIC = dict(PRE_END=3,              # as in the component analysis
+                 BOUNDARY_GUARD_S=2.0)   # no inter-beat interval across a join
 
 # ============================================================================
 # Self-report and demographic associations of the primary effect

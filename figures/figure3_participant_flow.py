@@ -19,6 +19,8 @@ import io
 import os
 import sys
 
+import numpy as np
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, 'functions'))
@@ -90,6 +92,14 @@ def flow_table():
     return rows
 
 
+def overlap_dropped(sid, ses, min_keep):
+    """Silent windows of a recording removed by the overlap rule: those with less than min_keep
+    seconds before the next window starts."""
+    z = np.load(os.path.join(config.DATA_DIR, sid, 'ses%d.npz' % ses), allow_pickle=True)
+    start = np.sort(z['seg_span'][z['seg_cond'] == 0, 0]) / float(z['fs'])
+    return int((np.diff(start) < min_keep).sum())
+
+
 def num(r, k):
     try:
         return int(float(r[k]))
@@ -123,7 +133,9 @@ def main():
     n_win = sum(num(r, 'run_n_seg_cond') for r in kept)
     n_nowin = n_conf_kept - n_win
     n_used = sum(num(r, 'run_n_seg_used') for r in kept)
-    n_overlap = n_win - n_used
+    n_overlap = sum(overlap_dropped(r['subject'], r['session'], min_keep) for r in kept)
+    n_few = n_win - n_used - n_overlap
+    assert n_few >= 0, 'unaccounted segment'
     per_subj = {}
     for r in kept:
         per_subj[r['subject']] = per_subj.get(r['subject'], 0) + 1
@@ -157,8 +169,9 @@ def main():
          + ('%d shorter than %g min\n' % (len(short), min_len) if short else '')
          + 'Reports with no usable segment in the cleaned data  (n = %d)' % n_nowin),
         ('Segments analysed\nn = %d  (%d participants)' % (n_used, n_subj),
-         ('Segments removed because they overlapped the next\nwith less than %g s of their '
-          'own left  (n = %d)' % (min_keep, n_overlap)) if trim else
+         ('Segments removed  (n = %d)\n%d overlapped the next with less than %g s of its '
+          'own left\n%d kept fewer than 20 usable heartbeats'
+          % (n_overlap + n_few, n_overlap, min_keep, n_few)) if trim else
          ('Segments removed because they overlapped\nthe next segment  (n = %d segments)'
           % n_overlap)),
     ]

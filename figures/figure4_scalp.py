@@ -154,8 +154,13 @@ def draw(d, stem):
         if d['post_sig'].any():
             outline(axA, d['post_sig'], t, f, colors=INK, linewidths=0.7)
         else:
-            axA.text(0.5, 0.5, 'no TFCE-significant cell\n(smallest p = %s)'
-                     % ('%.3f' % d['p_min']).lstrip('0'), transform=axA.transAxes,
+            # the map's smallest p can lie outside the channels of this panel
+            ch_min = d['ch'][int(np.unravel_index(np.nanargmin(d['p']), d['p'].shape)[0])]
+            msg = ('no TFCE-significant cell at these channels\n(map minimum p = %s, at %s)'
+                   if d['p_min'] < ALPHA else 'no TFCE-significant cell\n(smallest p = %s%s)')
+            axA.text(0.5, 0.5, msg % (('%.3f' % d['p_min']).lstrip('0'),
+                                      ch_min if d['p_min'] < ALPHA else ''),
+                     transform=axA.transAxes,
                      ha='center', va='center', fontsize=6, color=INK)
         tf_axes(axA, ext)
         axA.text(0, f[-1] + df / 2 + 0.4, 'R-peak', ha='center', va='bottom',
@@ -178,7 +183,7 @@ def draw(d, stem):
         axB.set_title('Same map, unthresholded' + (' (not significant)'
                                                  if d['p_min'] >= 0.05 else ''),
                       loc='left', pad=9)
-        axB.text(1.0, -0.20, 'dashed box: main-effect window (Figure 5)',
+        axB.text(1.0, -0.20, 'dashed box: unweighted region of the component effect (Figure 5)',
                  transform=axB.transAxes, ha='right', va='top', fontsize=5, color=MUTED)
         cb = fig.colorbar(im, cax=cax, ticks=[-4, -2, 0, 2, 4])
         cb.set_label('mean depth slope t over %d channels (n = %d)' % (npost, d['n']))
@@ -221,7 +226,7 @@ def draw(d, stem):
         axD.set_xlabel('largest |TFCE| in the map (smallest p = %s)'
                        % ('%.3f' % d['p_min']).lstrip('0'))
         axD.set_ylabel('sign-flip permutations')
-        axD.set_title('Real map vs %s sign-flip permutations' % format(null.size, ','),
+        axD.set_title('Real map vs %s sign-flip permutations' % format(d['nperm'], ','),
                       loc='left', pad=9)
         clean(axD)
 

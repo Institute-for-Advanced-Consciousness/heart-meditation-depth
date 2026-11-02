@@ -31,8 +31,8 @@ Download the whole dataset into `data/bids/` inside this repository, for example
     pip install openneuro-py
     openneuro-py download --dataset ds008836 --tag 1.0.2 --target-dir data/bids
 
-or with DataLad (`datalad install https://github.com/OpenNeuroDatasets/ds008836.git`, then
-`datalad get .`).
+or with DataLad (`datalad clone https://github.com/OpenNeuroDatasets/ds008836.git data/bids`,
+then `git -C data/bids checkout 1.0.2` and `datalad get -d data/bids .`).
 
 One table is not in the dataset and ships with this repository:
 `metadata/eeg_viability_ratings.tsv`, the experimenters' rating of each participant's EEG from
@@ -103,9 +103,14 @@ artifact subspace reconstruction and extended Infomax ICA, removes the component
 to muscle or eye, and removes the samples where the ECG is contaminated. It writes one EEGLAB file
 per recording (`<participant>/<session>/<participant>_ses<session>.set`) and a summary,
 `sInfo.mat`, saved after every recording. A recording whose ECG is contaminated in more than 20%
-of its samples gets no file (the summary marks it `ecg_bad`). The ICA starts from random weights,
-so a rerun matches the paper's preprocessed files closely but not exactly; the other steps are
-deterministic.
+of its samples gets no file (the summary marks it `ecg_bad`).
+
+A rerun gives files close to those of the paper, not identical to them. The ICA starts from
+random weights. Most of the paper's recordings went through earlier versions of this script,
+which set the rank for the ICA differently and whose event markers were then corrected. And 40
+markers of two recordings (sub-002 ses-2 and sub-014 ses-2), two of them silent depth reports,
+are in the paper's files and not in the dataset, so the counts of reports and segments of a
+rerun can differ slightly from the paper's.
 
 ## 4. Segment extraction (Python)
 
@@ -115,6 +120,13 @@ deterministic.
 recording, `data/segments/<participant>/ses<session>.npz`, with the 90 s before each depth
 report, the four recording periods, the ECG and respiration and the ICA decomposition, and one
 file with the ICLabel probabilities of every component, `data/segments/ic_labels.npz`.
+
+Each file also lists the joins of its recording (`boundaries`): those left by removed data and
+those that mark the task events, namely the gong, each report's response period from 2 s before
+its prompt or first press, every other press and rating, and the data before a silent block
+began. The analyses use nothing near a join: with the 2 s guard of `config.py`
+(`BOUNDARY_GUARD_S`), a heartbeat epoch ends at least 4 s before a prompt or first press and stays
+at least 2 s from everything else.
 
 ## 5. Analyses
 
@@ -146,13 +158,14 @@ Where the paper's tables come from:
 | Supplementary Table 1 | `results/figures/Supplementary_Table_1_confounds.csv`, written by `figures/supplementary_figure2_confounds.py` |
 | Supplementary Table 2 | `results/component/HEART_DEPTH/<primary setting>/viability_subsets.csv` |
 | Supplementary Table 3 | `results/associations/outcome_skipped_correlations.csv` |
-| Supplementary Table 4 | `results/component/HEART_DEPTH/<primary setting>/perbeat_wise/outcomes_demographics_tfce/*_demographics.csv` (the other tables in that folder are not reported) |
+| Supplementary Table 4 | `results/component/HEART_DEPTH/<primary setting>/perbeat_wise/outcomes_demographics_tfce/perbeat/HRSP_session_ivw_own_tfce-sn_largest_demographics.csv` (the other tables in that folder are not reported) |
 | Supplementary Table 5 | `results/periods/HEART_PERIOD/<run>/period_tfce_all.csv` |
 
 The primary setting's folder is `lee-hrsp-raw_1IC_dur60_bl_nosapo_cwtseg_trim30_bnd2` (one
-component, selected by its raw heartbeat-related spectral power; 60 s windows; baseline
-correction; silent blocks; wavelet transform on the stored 90 s segment; an overlapped window kept
-when at least 30 s remain; 2 s kept clear of each join of removed data).
+component, selected by its raw heartbeat-related spectral power; 60 s windows ending 3 s before
+the report; baseline correction; silent blocks; wavelet transform on the stored 90 s segment; an
+overlapped window kept when at least 30 s remain; 2 s kept clear of each join, of removed data or
+of a task event, section 4).
 
 ## 6. Figures
 
@@ -163,7 +176,7 @@ as PNG only). The script numbers in the last column are those of the table in se
 |---|---|---|
 | `figure3_participant_flow.py` | Figure 3 | the BIDS events and script 1 |
 | `figure4_scalp.py` | Figure 4 and Supplementary Figure 1 | script 3, and script 2 `tfce` (the span outlined on the maps) |
-| `figure5_primary.py` | Figure 5 | scripts 1 and 2 `tfce` |
+| `figure5_primary.py` | Figure 5 | scripts 1 and 2 `tfce`, `loso` and `surrogate` |
 | `figure6_sources.py` | Figure 6 | script 2 `sources` |
 | `figure7_theta.py` | Figure 7 | script 4 |
 | `supplementary_figure2_confounds.py` | Supplementary Figure 2 and Table 1 | script 2 `confounds` |
