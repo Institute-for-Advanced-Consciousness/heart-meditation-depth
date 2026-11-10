@@ -24,15 +24,15 @@ the code and its outputs.
 ## 1. Data
 
 The recordings, events, questionnaires and participant information are on OpenNeuro:
-[ds008836, version 1.0.2](https://doi.org/10.18112/openneuro.ds008836.v1.0.2) (about 70 GB).
+[ds008836, version 1.0.3](https://doi.org/10.18112/openneuro.ds008836.v1.0.3) (about 70 GB).
 Download the whole dataset into `data/bids/` inside this repository, for example with
 [openneuro-py](https://github.com/hoechenberger/openneuro-py):
 
     pip install openneuro-py
-    openneuro-py download --dataset ds008836 --tag 1.0.2 --target-dir data/bids
+    openneuro-py download --dataset ds008836 --tag 1.0.3 --target-dir data/bids
 
 or with DataLad (`datalad clone https://github.com/OpenNeuroDatasets/ds008836.git data/bids`,
-then `git -C data/bids checkout 1.0.2` and `datalad get -d data/bids .`).
+then `git -C data/bids checkout 1.0.3` and `datalad get -d data/bids .`).
 
 One table is not in the dataset and ships with this repository:
 `metadata/eeg_viability_ratings.tsv`, the experimenters' rating of each participant's EEG from
